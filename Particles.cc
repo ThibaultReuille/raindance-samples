@@ -31,7 +31,7 @@ const std::string g_FragmentShader =
     "    gl_FragColor = v_Color; \n"
     "}                           \n";
 
-const std::string g_ComputeKernel =
+const std::string g_ComputeProgram =
     "__kernel void repulsion(__global float4* inNodes,                                  \n"
     "                        __global float4* outDirections,                            \n"
     "                        const unsigned long count,                                 \n"
@@ -176,7 +176,7 @@ public:
             OpenCL::Context* context = m_OpenCL.createContext(*device);
             m_Queue = m_OpenCL.createCommandQueue(*context);
 
-            OpenCL::Program* program = m_OpenCL.loadProgram(*context, "particles", g_ComputeKernel);
+            OpenCL::Program* program = m_OpenCL.loadProgram(*context, "particles", g_ComputeProgram);
             m_RepulsionK = m_OpenCL.createKernel(*program, "repulsion");
             m_AttractionK = m_OpenCL.createKernel(*program, "attraction");
             m_MovementK = m_OpenCL.createKernel(*program, "movement");
