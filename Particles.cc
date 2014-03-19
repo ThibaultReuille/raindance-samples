@@ -38,7 +38,7 @@ const std::string g_ComputeKernel =
     "                        const float k)                                             \n"
     "{                                                                                  \n"
     "    unsigned int i = get_global_id(0);                                             \n"
-    "    float4 f = float4(0, 0, 0, 0);                                                 \n"
+    "    float4 f = (float4)(0.0);                                                      \n"
     "    for(unsigned long j = 0; j < count; j++)                                       \n"
     "    {                                                                              \n"
     "       if (i != j)                                                                 \n"
@@ -59,13 +59,13 @@ const std::string g_ComputeKernel =
     "                         const float k)                                            \n"
     "{                                                                                  \n"
     "    unsigned int i = get_global_id(0);                                             \n"
-    "    unsigned long src = inEdges[i][0];                                             \n"
-    "    unsigned long dst = inEdges[i][1];                                             \n"
+    "    unsigned long src = inEdges[i].x;                                              \n"
+    "    unsigned long dst = inEdges[i].y;                                              \n"
     "    float4 pos1 = inNodes[src];                                                    \n"
     "    float4 pos2 = inNodes[dst];                                                    \n"
     "    float4 direction = pos1 - pos2;                                                \n"
     "    float magnitude = length(direction);                                           \n"
-    "    if (magnitude > 100.0)                                                          \n"
+    "    if (magnitude > 100.0)                                                         \n"
     "    {                                                                              \n"
     "        outDirections[src] -= direction * magnitude / k;                           \n"
     "        outDirections[dst] += direction * magnitude / k;                           \n"
@@ -240,6 +240,8 @@ public:
             m_MovementK->setArgument(1, *m_ForceBuffer);
             m_MovementK->setArgument(2, *m_OutputNodeBuffer);
             m_MovementK->setArgument(3, &m_Temperature, sizeof(float));
+
+            m_Clock.reset();
         }
 
         m_OpenCL.enqueueWriteBuffer(*m_Queue, *m_InputNodeBuffer, CL_TRUE, 0, m_Nodes.size() * sizeof(Node), m_Nodes.data(), 0, NULL, NULL);
@@ -253,12 +255,11 @@ public:
         m_OpenCL.enqueueReadBuffer(*m_Queue, *m_OutputNodeBuffer, CL_TRUE, 0, m_Nodes.size() * sizeof(Node), m_Nodes.data(), 0, NULL, NULL);
 
         m_Time = (float)m_Clock.milliseconds() / 1000.0f;
-
+        m_Iterations++;
         if (m_Time > 0.0)
         {
-            LOG("Iteration : %u, Time : %f, Iteration/sec : %f\n", m_Iterations, m_Time, (m_Iterations + 1) / m_Time);
+            LOG("Iteration : %u, Time : %f, Iteration/sec : %f\n", m_Iterations, m_Time, m_Iterations / m_Time);
         }
-        m_Iterations++;
 
         m_SphericalCameraController.updateCamera();
         glutPostRedisplay();
