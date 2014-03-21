@@ -14,6 +14,11 @@ public:
     {
     }
 
+    inline float gaussian(float x, float mu, float sigma)
+    {
+        return (1.0 / (sigma * sqrt(2 * M_PI))) * exp(- ((x - mu) * (x - mu)) / (2 * sigma * sigma));
+    }
+
     virtual void initialize()
     {
         m_Camera.setOrthographicProjection(0, 1024, 0, 728, 0.1f, 1024.0f);
@@ -60,11 +65,6 @@ public:
         glEnable(GL_DEPTH_TEST);
     }
 
-    inline float gaussian(float x, float mu, float sigma)
-    {
-        return (1.0 / (sigma * sqrt(2 * M_PI))) * exp(- ((x - mu) * (x - mu)) / (2 * sigma * sigma));
-    }
-
     virtual void destroy()
     {
         SAFE_DELETE(m_LineChart1);
@@ -101,13 +101,9 @@ private:
 int main(int argc, char** argv)
 {
     Demo demo;
-
     demo.create(argc, argv);
-
     demo.addWindow("Charts", 1024, 728);
-
     demo.initialize();
     demo.run();
-
     demo.destroy();
 }
