@@ -24,7 +24,11 @@ particles: prepare
 	@echo "--- Compiling Particles Sample ---"
 	$(CC) $(CFLAGS) $(INCLUDES) Particles.cc -o Build/particles
 
-all: prepare cube sequences particles
+charts: prepare
+	@echo "--- Compiling Charts Sample ---"
+	$(CC) $(CFLAGS) $(INCLUDES) Charts.cc -o Build/charts
+
+all: prepare cube sequences particles charts
 
 clean:
 	@echo "--- Cleaning ---"
