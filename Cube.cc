@@ -56,6 +56,11 @@ public:
         glEnable(GL_DEPTH_TEST);
     }
 
+    virtual void destroy()
+    {
+        ResourceManager::getInstance().unload(m_Shader);
+    }
+
     virtual void draw()
     {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
