@@ -28,6 +28,10 @@ charts: prepare
 	@echo "--- Compiling Charts Sample ---"
 	$(CC) $(CFLAGS) $(INCLUDES) Charts.cc -o Build/charts
 
+board: prepare
+	@echo "--- Compiling Board Sample ---"
+	$(CC) $(CFLAGS) $(INCLUDES) Board.cc -o Build/board
+
 all: prepare cube sequences particles charts
 
 clean:

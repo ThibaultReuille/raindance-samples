@@ -3,12 +3,17 @@
 #include <raindance/Core/Transformation.hh>
 #include <raindance/Core/Charts/LineChart.hh>
 #include <raindance/Core/Charts/HeightMap.hh>
+#include <raindance/Core/Charts/IconMap.hh>
 
 class Demo : public RainDance
 {
 public:
     Demo()
     {
+        m_IconMap = NULL;
+        m_LineChart1 = NULL;
+        m_LineChart2 = NULL;
+        m_HeightMap = NULL;
     }
 
     virtual ~Demo()
@@ -76,6 +81,21 @@ public:
                 }
             m_HeightMap->update();
         }
+        {
+            const unsigned long size = 777;
+            char* memory = new char[size];
+
+            m_IconMap = new IconMap(16, size / 4 + 4);
+
+            for (unsigned long i = 0; i < size; i++)
+            {
+                float v = 0.4 + 0.7 * static_cast<float>(memory[i]) / 255.0;
+                glm::vec4 color = glm::vec4(v / 2, v, v, 1.0);
+                m_IconMap->set(i % m_IconMap->width(), i / m_IconMap->width(), 1, color, 1.0);
+            }
+
+            delete[] memory;
+        }
 
         glClearColor(0.2, 0.2, 0.2, 1.0);
         glEnable(GL_DEPTH_TEST);
@@ -85,6 +105,8 @@ public:
     {
         SAFE_DELETE(m_LineChart1);
         SAFE_DELETE(m_LineChart2);
+        SAFE_DELETE(m_HeightMap);
+        SAFE_DELETE(m_IconMap);
     }
 
     virtual void draw()
@@ -112,6 +134,13 @@ public:
         m_LineChart2->draw(m_Context, transformation.state(), m_Camera2D.getViewMatrix(), m_Camera2D.getProjectionMatrix());
         transformation.pop();
 
+        transformation.push();
+        transformation.translate(glm::vec3(10, m_Window->height() - 10, 0.0));
+        transformation.scale(glm::vec3(10, 10, 1));
+        m_IconMap->draw(m_Context, transformation.state(), m_Camera2D.getViewMatrix(), m_Camera2D.getProjectionMatrix());
+
+        transformation.pop();
+
         finish();
     }
 
@@ -132,6 +161,7 @@ private:
     LineChart* m_LineChart1;
     LineChart* m_LineChart2;
     HeightMap* m_HeightMap;
+    IconMap* m_IconMap;
 };
 
 int main(int argc, char** argv)
