@@ -2,7 +2,7 @@
 #include <raindance/Core/Camera/Camera.hh>
 #include <raindance/Core/Transformation.hh>
 #include <raindance/Core/Primitives/Grid.hh>
-#include <raindance/Core/Primitives/Cube.hh>
+#include <raindance/Core/Primitives/Cylinder.hh>
 #include <raindance/Core/Light.hh>
 #include <raindance/Core/Material.hh>
 
@@ -54,7 +54,7 @@ const std::string g_VertexShader = "                                            
                                                                                           \n\
         if (lambert > 0.0)                                                                \n\
         {                                                                                 \n\
-            v_Color += vec4(u_Light.Color, 1.0) * u_Material.Diffuse * lambert;           \n\
+            v_Color += vec4(u_Light.Color, 0.0) * u_Material.Diffuse * lambert;           \n\
                                                                                           \n\
             vec3 eyeDirection = normalize(-v_Position);                                   \n\
             vec3 r = reflect(-lightDirection, v_Normal);                                  \n\
@@ -64,6 +64,7 @@ const std::string g_VertexShader = "                                            
             v_Color += vec4(u_Material.Specular * specular, 0.0);                         \n\
         }                                                                                 \n\
                                                                                           \n\
+        v_Color.a = u_Material.Diffuse.a;                                                 \n\
         gl_Position = u_ProjectionMatrix * vec4(v_Position, 1.0);                         \n\
     }                                                                                     \n\
 ";
@@ -106,6 +107,7 @@ public:
         m_Grid = NULL;
         m_Token = NULL;
         m_TokenShader = NULL;
+        m_TokenSpacing = 0.1;
     }
 
     virtual ~Demo()
@@ -117,35 +119,50 @@ public:
         m_Camera3D.setPerspectiveProjection(60.0f, (float)m_Window->width() / (float)m_Window->height(), 0.1f, 1024.0f);
         m_Camera3D.lookAt(glm::vec3(-50.0, 30.0, -50.0), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 
-        m_Grid = new Grid(100, 100);
+        m_Grid = new Grid(64, 64);
         m_Grid->setColor(glm::vec4(0.5, 0.5, 0.5, 1.0));
 
-        float radius = 20;
-
-        for (float alpha = 0; alpha < 2 * M_PI; alpha += 0.1)
+        float radius = 32;
+        for (float alpha = 0; alpha < 2 * M_PI; alpha += 0.05)
         {
             auto pile = new Pile();
-            float r = RANDOM_FLOAT(0.2, 1.5);
-            pile->Position.x = r * radius * cos(alpha);
+            pile->Position.x = RANDOM_FLOAT(0.1, 1.0) * radius * cos(alpha);
             pile->Position.y = 0;
-            pile->Position.z = r * radius * sin(alpha);
+            pile->Position.z = RANDOM_FLOAT(0.1, 1.0) * radius * sin(alpha);
 
-            for (unsigned int i = 0; i < 5; i++)
+            for (unsigned int i = 0; i < 3; i++)
             {
-                float size = 1.0; //RANDOM_FLOAT(0.5, 1.5);
-                float height = RANDOM_FLOAT(0.1, 2.0);
-                glm::vec4 color = glm::vec4(RANDOM_FLOAT(0, 1), RANDOM_FLOAT(0, 1), RANDOM_FLOAT(0, 1), 1.0);
+                glm::vec4 color;
+                float size = 1.0;
+                float height = RANDOM_FLOAT(0.1, 2.0) * RANDOM_FLOAT(0.1, 1.0);
+                float rnd = RANDOM_FLOAT(0.0, 0.9);
+
+                switch(i % 3)
+                {
+                case 0:
+                    color = glm::vec4(1.0, 1 - rnd, 1 - rnd, 1.0);
+                    break;
+                case 1:
+                    color = glm::vec4(1 - rnd, 1.0, 1 - rnd, 1.0);
+                    break;
+                case 2:
+                    color = glm::vec4(1 - rnd, 1 - rnd, 1.0, 1.0);
+                    break;
+                default:
+                    break;
+                }
                 pile->Tokens.push_back(Token(size, height, color));
             }
 
             m_Piles.push_back(pile);
         }
 
-        m_Token = new Cube(glm::vec3(0, 0.5, 0));
+        m_Token = new Cylinder(0.5, 0.5, 15, 10, glm::vec3(0, 0.5, 0));
         m_TokenShader = ResourceManager::getInstance().loadShader("Board/Token", g_VertexShader, g_FragmentShader);
-        m_TokenShader->dump();
+        // m_TokenShader->dump();
 
-        m_Light.setPosition(glm::vec3(0, 100, 0));
+        m_Light.setPosition(glm::vec3(128, 128, 0));
+        m_Light.setColor(glm::vec3(1.2, 1.2, 1.2));
 
         glClearColor(0.2, 0.2, 0.2, 1.0);
         glEnable(GL_DEPTH_TEST);
@@ -170,7 +187,7 @@ public:
 
         transformation.push();
         transformation.rotate(90, glm::vec3(1.0, 0, 0));
-        transformation.translate(glm::vec3(-50, -50, 0));
+        transformation.translate(glm::vec3(-(float) m_Grid->width() / 2, -(float) m_Grid->height() / 2, 0));
         m_Grid->draw(m_Context, transformation.state(), m_Camera3D.getViewMatrix(), m_Camera3D.getProjectionMatrix());
         transformation.pop();
 
@@ -190,23 +207,24 @@ public:
             for (auto& token : pile->Tokens)
             {
                 transformation.push();
-                transformation.scale(glm::vec3(token.Size, token.Height, token.Size));
+                {
+                    transformation.scale(glm::vec3(token.Size, token.Height, token.Size));
 
-                m_TokenShader->uniform("u_ModelMatrix").set(transformation.state());
-                m_TokenShader->uniform("u_NormalMatrix").set(glm::transpose(glm::inverse(glm::mat3(m_Camera3D.getViewMatrix() * transformation.state()))));
+                    m_TokenShader->uniform("u_ModelMatrix").set(transformation.state());
+                    m_TokenShader->uniform("u_NormalMatrix").set(glm::transpose(glm::inverse(glm::mat3(m_Camera3D.getViewMatrix() * transformation.state()))));
 
-                m_TokenShader->uniform("u_Material.Ambient").set(m_Material.getAmbient());
-                m_TokenShader->uniform("u_Material.Diffuse").set(token.Color);
-                m_TokenShader->uniform("u_Material.Specular").set(m_Material.getSpecular());
-                m_TokenShader->uniform("u_Material.Shininess").set(m_Material.getShininess());
+                    m_TokenShader->uniform("u_Material.Ambient").set(m_Material.getAmbient());
+                    m_TokenShader->uniform("u_Material.Diffuse").set(token.Color);
+                    m_TokenShader->uniform("u_Material.Specular").set(m_Material.getSpecular());
+                    m_TokenShader->uniform("u_Material.Shininess").set(m_Material.getShininess());
 
-                m_Context.geometry().bind(m_Token->getVertexBuffer(), *m_TokenShader);
-                m_Context.geometry().drawElements(GL_TRIANGLES, m_Token->getIndexBuffer().size() / sizeof(unsigned short int), GL_UNSIGNED_SHORT, m_Token->getIndexBuffer().ptr());
-                m_Context.geometry().unbind(m_Token->getVertexBuffer());
+                    m_Context.geometry().bind(m_Token->getVertexBuffer(), *m_TokenShader);
+                    m_Context.geometry().drawArrays(GL_TRIANGLE_STRIP, 0, m_Token->getVertexBuffer().size() / sizeof(Cylinder::Vertex));
+                    m_Context.geometry().unbind(m_Token->getVertexBuffer());
 
-                transformation.pop();
-
-                transformation.translate(glm::vec3(0, token.Height, 0));
+                    transformation.pop();
+                }
+                transformation.translate(glm::vec3(0, token.Height + m_TokenSpacing, 0));
             }
             transformation.pop();
         }
@@ -217,7 +235,7 @@ public:
     virtual void idle()
     {
         float t = 0.1f * static_cast<float>(m_Clock.milliseconds()) / 1000.0f;
-        m_Camera3D.lookAt(glm::vec3(50 * cos(t), 10, 50 * sin(t)), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+        m_Camera3D.lookAt(glm::vec3(48 * cos(t), 20, 48 * sin(t)), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 
         glutPostRedisplay();
     }
@@ -233,8 +251,9 @@ private:
 
     Grid* m_Grid;
     std::vector<Pile*> m_Piles;
+    float m_TokenSpacing;
 
-    Cube* m_Token;
+    Cylinder* m_Token;
     Shader::Program* m_TokenShader;
 };
 
