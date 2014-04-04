@@ -32,7 +32,7 @@ board: prepare
 	@echo "--- Compiling Board Sample ---"
 	$(CC) $(CFLAGS) $(INCLUDES) Board.cc -o Build/board
 
-all: prepare cube sequences particles charts
+all: prepare cube sequences particles charts board
 
 clean:
 	@echo "--- Cleaning ---"
