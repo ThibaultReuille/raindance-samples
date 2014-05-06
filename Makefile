@@ -16,10 +16,6 @@ cube: prepare
 	@echo "--- Compiling Cube Sample ---"
 	$(CC) $(CFLAGS) $(INCLUDES) Cube.cc -o Build/cube
 
-sequences: prepare
-	@echo "--- Compiling Sequences Sample ---"
-	$(CC) $(CFLAGS) $(INCLUDES) Sequences.cc -o Build/sequences
-
 particles: prepare
 	@echo "--- Compiling Particles Sample ---"
 	$(CC) $(CFLAGS) $(INCLUDES) Particles.cc -o Build/particles
@@ -32,7 +28,7 @@ board: prepare
 	@echo "--- Compiling Board Sample ---"
 	$(CC) $(CFLAGS) $(INCLUDES) Board.cc -o Build/board
 
-all: prepare cube sequences particles charts board
+all: prepare cube particles charts board
 
 clean:
 	@echo "--- Cleaning ---"

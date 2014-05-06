@@ -130,7 +130,7 @@ public:
         {
             m_Camera.setPerspectiveProjection(60.0f, (float)m_Window->width() / (float)m_Window->height(), 0.1f, 1000000.0f);
 
-            m_SphericalCameraController.bind(&m_Camera, &m_Context.sequencer());
+            m_SphericalCameraController.bind(&m_Context, &m_Camera);
             m_SphericalCameraController.setRadius(2000);
             m_SphericalCameraController.updateCamera();
 
