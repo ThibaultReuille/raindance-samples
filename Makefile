@@ -28,7 +28,11 @@ board: prepare
 	@echo "--- Compiling Board Sample ---"
 	$(CC) $(CFLAGS) $(INCLUDES) Board.cc -o Build/board
 
-all: prepare cube particles charts board
+agents: prepare
+	@echo "--- Compiling Agents Sample ---"
+	$(CC) $(CFLAGS) $(INCLUDES) Agents.cc -o Build/agents
+
+all: prepare cube particles charts board agents
 
 clean:
 	@echo "--- Cleaning ---"
