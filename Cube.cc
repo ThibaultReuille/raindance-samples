@@ -68,9 +68,9 @@ public:
         m_Shader->use();
         m_Shader->uniform("u_ModelViewProjectionMatrix").set(m_Camera.getViewProjectionMatrix());
 
-        m_Context.geometry().bind(m_Cube->getVertexBuffer(), *m_Shader);
-        m_Context.geometry().drawElements(GL_TRIANGLES, m_Cube->getIndexBuffer().size() / sizeof(unsigned short int), GL_UNSIGNED_SHORT, m_Cube->getIndexBuffer().ptr());
-        m_Context.geometry().unbind(m_Cube->getVertexBuffer());
+        context().geometry().bind(m_Cube->getVertexBuffer(), *m_Shader);
+        context().geometry().drawElements(GL_TRIANGLES, m_Cube->getTriangleBuffer().size() / sizeof(unsigned short int), GL_UNSIGNED_SHORT, m_Cube->getTriangleBuffer().ptr());
+        context().geometry().unbind(m_Cube->getVertexBuffer());
 
         finish();
     }
