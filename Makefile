@@ -43,6 +43,10 @@ fonts: prepare Fonts.cc
 	@echo "--- Compiling Fonts Sample ---"
 	$(CC) $(CFLAGS) $(INCLUDES) Fonts.cc -o Build/fonts
 
+stream: prepare Stream.cc
+	@echo "--- Compiling Stream Sample ---"
+	$(CC) $(CFLAGS) $(INCLUDES) Stream.cc -o Build/stream
+
 clean:
 	@echo "--- Cleaning ---"
 	rm -rf Build
