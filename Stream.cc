@@ -2,34 +2,9 @@
 #include <raindance/Core/Camera/Camera.hh>
 #include <raindance/Core/Primitives/Quad.hh>
 #include <raindance/Core/Primitives/WideLine.hh>
+#include <raindance/Core/Primitives/Grid.hh>
 #include <raindance/Core/Transformation.hh>
-
-const std::string g_VertexShader =                          
-"attribute vec3 a_Position;                                             \n"
-"attribute vec2 a_Texcoord;                                             \n"
-"                                                                       \n"
-"uniform mat4 u_ModelViewProjectionMatrix;                              \n"
-"uniform vec4 u_Color;"
-"                                                                       \n"
-"varying vec4 v_Color;                                                  \n"
-"                                                                       \n"
-"void main(void)                                                        \n"
-"{                                                                      \n"
-"    v_Color = u_Color;                                                 \n"
-"    gl_Position = u_ModelViewProjectionMatrix * vec4(a_Position, 1.0); \n"
-"}                                                                      \n";
-
-const std::string g_FragmentShader =
-"#ifdef GL_ES                \n"
-"precision mediump float;    \n"
-"#endif                      \n"
-"                            \n"
-"varying vec4 v_Color;       \n"
-"                            \n"
-"void main(void)             \n"
-"{                           \n"
-"    gl_FragColor = v_Color; \n"
-"}                           \n";
+#include <raindance/Core/Icon.hh>
 
 class TimeSerie
 {
@@ -60,50 +35,45 @@ public:
         m_WideLine.setColor(0, color);
         m_WideLine.setColor(1, color);
         m_WideLine.update();
+        m_Size = 1.0;
 
         m_Begin = 0;
         m_End = 0;
 
-        m_Shader = ResourceManager::getInstance().loadShader("shaders/time_serie",
-            g_VertexShader, g_FragmentShader);
-        // m_Shader->dump();
-
         m_WideLineShader = ResourceManager::getInstance().loadShader("shaders/wideline",
             Resources_Shaders_Primitives_wideline_vert, sizeof(Resources_Shaders_Primitives_wideline_vert),
             Resources_Shaders_Primitives_wideline_frag, sizeof(Resources_Shaders_Primitives_wideline_frag));
-        m_WideLineShader->dump();
+        // m_WideLineShader->dump();
     }
 
     virtual ~TimeSerie()
     {
-        ResourceManager::getInstance().unload(m_Shader);
         ResourceManager::getInstance().unload(m_WideLineShader);
     }
 
     virtual void draw(Context& context, Camera& camera)
     {
+        glEnable(GL_BLEND);
+        glBlendFunc (GL_SRC_ALPHA, GL_DST_ALPHA);
+
         drawLines(context, camera);
-        //drawQuads(context, camera);
     }
 
     virtual void drawLines(Context& context, Camera& camera)
     {
         m_WideLineShader->use();
-
-        m_WideLineShader->uniform("u_Mode").set(0.0f);
+        
         m_WideLineShader->uniform("u_ModelViewProjection").set(camera.getViewProjectionMatrix());
-        // m_Shader->uniform("u_ExtrudeDirection").set(glm::vec3(0.0, 1.0, 0.0));
-        // m_Shader->uniform("u_Texture").set(Icon->getTexture(m_TextureID));
+        // m_WideLineShader->uniform("u_ExtrudeDirection").set(glm::vec3(0.0, 1.0, 0.0));
+        // m_WideLineShader->uniform("u_Texture").set(Icon->getTexture(m_TextureID));
 
-        float height_div_size = 600 / static_cast<float>(abs(100 - (-100)));
-        float width_div_size = 800 / static_cast<float>(m_Ticks.size()) ;
-
-        float x = 0.0;
         size_t index = m_Begin;
 
         glm::vec3 lastPos;
-        glm::vec3 currPos = glm::vec3(0.0, m_Ticks[index].data().y * height_div_size, 1.0);
+        glm::vec3 currPos = m_Ticks[index].data();
         glm::vec4 color = glm::vec4(1.2, 1.2, 1.2, 0.8);
+
+        glm::vec3 firstPos = glm::vec3(currPos.x, 0.0, 0.0);
         
         do
         {
@@ -111,49 +81,35 @@ public:
             if (index == m_End)
                 break;
 
-            x += width_div_size;
             lastPos = currPos;
-            currPos = glm::vec3(x, m_Ticks[index].data().y * height_div_size, 1.0);
+            currPos = m_Ticks[index].data();
 
-            m_WideLineShader->use();
-            m_WideLineShader->uniform("u_StartPosition").set(lastPos);
-            m_WideLineShader->uniform("u_EndPosition").set(currPos);
-            m_WideLineShader->uniform("u_Tint").set(color);
+            if (true)
+            {
+                m_WideLineShader->uniform("u_Mode").set(0.0f);
+                m_WideLineShader->uniform("u_StartPosition").set(lastPos - firstPos);
+                m_WideLineShader->uniform("u_EndPosition").set(currPos - firstPos);
+                m_WideLineShader->uniform("u_Tint").set(color);
 
-            context.geometry().bind(m_WideLine.getVertexBuffer(), *m_WideLineShader);
-            context.geometry().drawArrays(GL_LINES, 0, 2 * sizeof(WideLine::Vertex));
-            context.geometry().unbind(m_WideLine.getVertexBuffer());
+                context.geometry().bind(m_WideLine.getVertexBuffer(), *m_WideLineShader);
+                context.geometry().drawArrays(GL_LINES, 0, 2 * sizeof(WideLine::Vertex));
+                context.geometry().unbind(m_WideLine.getVertexBuffer());
+            }
+            else
+            {
+                glm::vec3 extrusion = 2.0f * m_Size * glm::vec3(0.0, 1.0, 0.0);
 
+                m_WideLineShader->uniform("u_Mode").set(3.0f);
+                m_WideLineShader->uniform("u_StartPosition").set(lastPos);
+                m_WideLineShader->uniform("u_EndPosition").set(currPos);
+                m_WideLineShader->uniform("u_ExtrudeDirection").set(extrusion);
+                m_WideLineShader->uniform("u_Tint").set(color);
+
+                context.geometry().bind(m_WideLine.getVertexBuffer(), *m_WideLineShader);
+                context.geometry().drawArrays(GL_TRIANGLE_STRIP, 0, m_WideLine.getVertexBuffer().size() / sizeof(WideLine::Vertex));
+                context.geometry().unbind(m_WideLine.getVertexBuffer());
+            }
         } while (true);
-    }
-
-    virtual void drawQuads(Context& context, Camera& camera)
-    {
-        Transformation transformation;
-
-        m_Shader->use();
-        m_Shader->uniform("u_Color").set(m_Color);
-
-        float height_div_size = 600 / static_cast<float>(abs(100 - (-100)));
-        float width_div_size = 800 / static_cast<float>(m_Ticks.size()) ;
-
-        size_t index = m_Begin;
-        float x = 0.0;
-        while (index != m_End)
-        {
-            transformation.set(glm::mat4());
-
-            transformation.translate(glm::vec3(x, m_Ticks[index].data().y * height_div_size, 1.0));
-            transformation.scale(glm::vec3(5.0, 5.0, 1.0));
-
-            m_Shader->uniform("u_ModelViewProjectionMatrix").set(camera.getViewProjectionMatrix() * transformation.state());
-            context.geometry().bind(m_Quad->getVertexBuffer(), *m_Shader);
-            context.geometry().drawElements(GL_TRIANGLES, m_Quad->getTriangleBuffer().size() / sizeof(unsigned char), GL_UNSIGNED_BYTE, m_Quad->getTriangleBuffer().ptr());
-            context.geometry().unbind(m_Quad->getVertexBuffer());
-
-            index = (index + 1) % m_Ticks.size();
-            x += width_div_size;
-        }
     }
 
     virtual void push(Tick tick)
@@ -205,6 +161,8 @@ public:
         *average = sum / count;
     }
 
+    inline void setSize(float size) { m_Size = size; }
+
 protected:
     std::vector<Tick> m_Ticks;
     size_t m_Begin;
@@ -213,7 +171,7 @@ protected:
     Quad* m_Quad;
     WideLine m_WideLine;
     Shader::Program* m_WideLineShader;
-    // Icon* m_WideLineIcon;
+    float m_Size;
 
     Shader::Program* m_Shader;
     glm::vec4 m_Color;
@@ -232,6 +190,8 @@ public:
         SAFE_DELETE(m_TimeSerieAvg);
         SAFE_DELETE(m_TimeSerieMin);
         SAFE_DELETE(m_TimeSerieMax);
+
+        SAFE_DELETE(m_Grid);
     }
 
     virtual void initialize()
@@ -239,16 +199,30 @@ public:
         float width = static_cast<float>(glutGet(GLUT_WINDOW_WIDTH));
         float height = static_cast<float>(glutGet(GLUT_WINDOW_HEIGHT));
 
-        m_Camera.setOrthographicProjection(-10, width + 10, - height - 10, height + 10, -10.0, 10.0);
+        m_Camera.setOrthographicProjection(0, width, - height / 2, height / 2, - 10.0, 10.0);
+
         m_Camera.lookAt(glm::vec3(0, 0, 1.0), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 
-        m_TimeSerie = new TimeSerie(500, glm::vec4(WHITE, 1.0));
-        m_TimeSerieAvg = new TimeSerie(500, glm::vec4(LOVE_RED, 1.0));
-        m_TimeSerieMin = new TimeSerie(500, glm::vec4(AQUAMARINE, 1.0));
-        m_TimeSerieMax = new TimeSerie(500, glm::vec4(AQUAMARINE, 1.0));
+        m_TimeSerie = new TimeSerie(600, glm::vec4(WHITE, 1.0));
+        m_TimeSerie->setSize(2.0);
+        m_TimeSerieAvg = new TimeSerie(600, glm::vec4(LOVE_RED, 1.0));
+        m_TimeSerieMin = new TimeSerie(600, glm::vec4(GUNMETAL, 1.0));
+        m_TimeSerieMax = new TimeSerie(600, glm::vec4(GUNMETAL, 1.0));
+
+        Grid::Parameters params = {};
+
+        params.Dimension = glm::vec2(600, 200);
+        params.Origin = glm::vec2(0, -100);
+        params.Step = glm::vec2(100.0, 100.0);
+        params.Division = glm::vec2(10.0, 10.0);
+
+        params.Color = glm::vec4(0.02, 0.15, 0.4, 1.0);
+        params.BackgroundColor = 0.5f * params.Color;
+        
+        m_Grid = new Grid(params);
 
         glClearColor(0.1, 0.1, 0.1, 1.0);
-        glEnable(GL_DEPTH_TEST);
+        glDisable(GL_DEPTH_TEST);
     }
 
     virtual void destroy()
@@ -258,6 +232,8 @@ public:
     virtual void draw()
     {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+        m_Grid->draw(context(), m_Camera);
 
         m_TimeSerie->draw(context(), m_Camera);
         m_TimeSerieAvg->draw(context(), m_Camera);
@@ -272,6 +248,7 @@ public:
         static bool _first = true;
         static float _lastTime;
         static float _value = 0.0;
+        static unsigned int _count = 0;
 
         if (_first)
         {
@@ -289,20 +266,26 @@ public:
         float moving_max;
         float moving_avg;
 
-        if (t - _lastTime >= 0.001f)
+        if (t - _lastTime >= 0.030f)
         {
-            _value += RANDOM_FLOAT(-5.0, 5.0);
-            _value = std::max(min, std::min(max, _value));
-            LOG("%f\t%f\n", t, _value);
+            float tscale = static_cast<float>(_count);
 
-            m_TimeSerie->push(TimeSerie::Tick(glm::vec3(t, _value, 0.0)));
+            LOG("%f\t%f\n", tscale, _value);
+
+            m_TimeSerie->push(TimeSerie::Tick(glm::vec3(tscale, _value, 0.0)));
 
             m_TimeSerie->getStats(50, &moving_avg, &moving_min, &moving_max);
-            m_TimeSerieAvg->push(TimeSerie::Tick(glm::vec3(t, moving_avg, 0.0)));
-            m_TimeSerieMin->push(TimeSerie::Tick(glm::vec3(t, moving_min, 0.0)));
-            m_TimeSerieMax->push(TimeSerie::Tick(glm::vec3(t, moving_max, 0.0)));
+            m_TimeSerieAvg->push(TimeSerie::Tick(glm::vec3(tscale, moving_avg, 0.0)));
+            m_TimeSerieMin->push(TimeSerie::Tick(glm::vec3(tscale, moving_min, 0.0)));
+            m_TimeSerieMax->push(TimeSerie::Tick(glm::vec3(tscale, moving_max, 0.0)));
 
+            _value += RANDOM_FLOAT(-10.0, 10.0);
+            _value = std::max(min, std::min(max, _value));
             _lastTime = t;     
+            _count ++;
+
+            if (_count >= 600)
+            m_Grid->parameters().Shift.x += 1.0;
         }
 
         glutPostRedisplay();
@@ -314,6 +297,8 @@ private:
     TimeSerie* m_TimeSerieAvg;
     TimeSerie* m_TimeSerieMin;
     TimeSerie* m_TimeSerieMax;
+
+    Grid* m_Grid;
 };
 
 int main(int argc, char** argv)
@@ -322,7 +307,8 @@ int main(int argc, char** argv)
 
     demo.create(argc, argv);
 
-    demo.addWindow("Stream", 800, 600);
+    // demo.addWindow("Stream", glutGet(GLUT_SCREEN_WIDTH), glutGet(GLUT_SCREEN_HEIGHT));
+    demo.addWindow("Stream", 600, 300);
 
     demo.initialize();
     demo.run();
