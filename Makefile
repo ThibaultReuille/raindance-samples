@@ -8,11 +8,11 @@ CFLAGS=-W -Wall -ansi -Wno-missing-field-initializers -O2 -std=c++11 -stdlib=lib
 # Linux CFLAGS
 #CFLAGS=-W -Wall -ansi -Wno-missing-field-initializers -m64 -O2 -std=c++11 -stdlib=libc++ -Wno-deprecated -lm -lGL -lglut -lOpenCL -g
 
-INCLUDES=-I../ -I../raindance -I./raindance/Lib/ -I../raindance/Lib/glm-0.9.4.4
+INCLUDES=-I../ -I../raindance -I./raindance/Lib/ -I../raindance/Lib/glm-0.9.5.4
 
 .PHONY: all prepare
 
-all: prepare cube particles charts board agents fonts
+all: prepare cube particles charts board agents fonts stream
 
 prepare:
 	( cd ../raindance && make )
