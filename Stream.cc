@@ -27,14 +27,14 @@ public:
         SAFE_DELETE(m_Polyline);
     }
 
-    virtual void draw(Context& context, Camera& camera)
+    virtual void draw(Context* context, Camera& camera)
     {
         glEnable(GL_BLEND);
         glBlendFunc (GL_SRC_ALPHA, GL_DST_ALPHA);
 
         Transformation transformation;
 
-        m_Polyline->draw(context, camera, transformation, m_Values, m_Begin, m_End);
+        m_Polyline->draw(*context, camera, transformation, m_Values, m_Begin, m_End);
     }
 
     virtual void push(float timestamp, float value)
@@ -98,27 +98,14 @@ protected:
     Polyline* m_Polyline;
 };
 
-class Demo : public RainDance
+class DemoWindow : public GLFW::Window
 {
 public:
-    Demo()
+    DemoWindow(const char* title, int w, int h)
+    : GLFW::Window(title, w, h)
     {
-    }
-
-    virtual ~Demo()
-    {
-        SAFE_DELETE(m_TimeSerie);
-        SAFE_DELETE(m_TimeSerieAvg);
-        SAFE_DELETE(m_TimeSerieMin);
-        SAFE_DELETE(m_TimeSerieMax);
-
-        SAFE_DELETE(m_Grid);
-    }
-
-    virtual void initialize()
-    {
-        float width = static_cast<float>(glutGet(GLUT_WINDOW_WIDTH));
-        float height = static_cast<float>(glutGet(GLUT_WINDOW_HEIGHT));
+        float width = static_cast<float>(w);
+        float height = static_cast<float>(h);
 
         m_Camera.setOrthographicProjection(0, width, - height / 2, height / 2, - 10.0, 10.0);
         m_Camera.lookAt(glm::vec3(0, 0, 1.0), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
@@ -148,26 +135,39 @@ public:
         glDisable(GL_DEPTH_TEST);
     }
 
-    virtual void destroy()
+    virtual ~DemoWindow()
     {
+        SAFE_DELETE(m_TimeSerie);
+        SAFE_DELETE(m_TimeSerieAvg);
+        SAFE_DELETE(m_TimeSerieMin);
+        SAFE_DELETE(m_TimeSerieMax);
+
+        SAFE_DELETE(m_Grid);
+    }
+    
+    virtual void initialize(Context* context)
+    {
+        (void) context;
     }
 
-    virtual void draw()
+    virtual void draw(Context* context)
     {
+        Transformation transformation;
+
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        m_Grid->draw(context(), m_Camera);
+        m_Grid->draw(*context, transformation, m_Camera);
 
-        m_TimeSerie->draw(context(), m_Camera);
-        m_TimeSerieAvg->draw(context(), m_Camera);
-        m_TimeSerieMin->draw(context(), m_Camera);
-        m_TimeSerieMax->draw(context(), m_Camera);
-
-        finish();
+        m_TimeSerie->draw(context, m_Camera);
+        m_TimeSerieAvg->draw(context, m_Camera);
+        m_TimeSerieMin->draw(context, m_Camera);
+        m_TimeSerieMax->draw(context, m_Camera);
     }
 
-    virtual void idle()
+    virtual void idle(Context* context)
     {
+        (void) context;
+
         static bool _first = true;
         static float _lastTime;
         static float _value = 0.0;
@@ -175,12 +175,12 @@ public:
 
         if (_first)
         {
-            context().clock().start();
-            _lastTime = context().clock().seconds();
+            context->clock().start();
+            _lastTime = context->clock().seconds();
             _first = false;
         }
 
-        float t = context().clock().seconds();
+        float t = context->clock().seconds();
 
         float min = -100.0f;
         float max = +100.0f;
@@ -210,8 +210,6 @@ public:
             if (_count >= 600)
             m_Grid->parameters().Shift.x += 1.0;
         }
-
-        glutPostRedisplay();
     }
 
 private:
@@ -226,15 +224,11 @@ private:
 
 int main(int argc, char** argv)
 {
-    Demo demo;
+    auto demo = new Raindance(argc, argv);
 
-    demo.create(argc, argv);
+    demo->add(new DemoWindow("Stream", 600, 300));
 
-    // demo.addWindow("Stream", glutGet(GLUT_SCREEN_WIDTH), glutGet(GLUT_SCREEN_HEIGHT));
-    demo.addWindow("Stream", 600, 300);
+    demo->run();
 
-    demo.initialize();
-    demo.run();
-
-    demo.destroy();
+    delete demo;
 }

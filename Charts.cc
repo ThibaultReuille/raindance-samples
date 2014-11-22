@@ -5,32 +5,22 @@
 #include <raindance/Core/Charts/HeightMap.hh>
 #include <raindance/Core/Charts/IconMap.hh>
 
-class Demo : public RainDance
+class DemoWindow : public GLFW::Window
 {
 public:
-    Demo()
+    
+    DemoWindow(const char* title, int width, int height)
+    : GLFW::Window(title, width, height)
     {
         m_IconMap = NULL;
         m_LineChart1 = NULL;
         m_LineChart2 = NULL;
         m_HeightMap = NULL;
-    }
 
-    virtual ~Demo()
-    {
-    }
-
-    inline float gaussian(float x, float mu, float sigma)
-    {
-        return (1.0 / (sigma * sqrt(2 * M_PI))) * exp(- ((x - mu) * (x - mu)) / (2 * sigma * sigma));
-    }
-
-    virtual void initialize()
-    {
         m_Camera2D.setOrthographicProjection(0, 1024, 0, 728, 0.1f, 1024.0f);
         m_Camera2D.lookAt(glm::vec3(0.0, 0.0, 5.0), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 
-        m_Camera3D.setPerspectiveProjection(60.0f, (float)m_Window->width() / (float)m_Window->height(), 0.1f, 1024.0f);
+        m_Camera3D.setPerspectiveProjection(60.0f, (float)width / (float)height, 0.1f, 1024.0f);
         m_Camera3D.lookAt(glm::vec3(-50.0, 30.0, -50.0), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 
         {
@@ -101,15 +91,20 @@ public:
         glEnable(GL_DEPTH_TEST);
     }
 
-    virtual void destroy()
+    virtual ~DemoWindow()
     {
         SAFE_DELETE(m_LineChart1);
         SAFE_DELETE(m_LineChart2);
         SAFE_DELETE(m_HeightMap);
         SAFE_DELETE(m_IconMap);
     }
+    
+    virtual void initialize(Context* context)
+    {
+        (void) context;
+    }
 
-    virtual void draw()
+    virtual void draw(Context* context)
     {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -117,7 +112,7 @@ public:
 
         transformation.push();
         transformation.translate(glm::vec3(-25, 15, -25));
-        m_HeightMap->draw(m_Context, transformation.state(), m_Camera3D.getViewMatrix(), m_Camera3D.getProjectionMatrix());
+        m_HeightMap->draw(*context, transformation.state(), m_Camera3D.getViewMatrix(), m_Camera3D.getProjectionMatrix());
         transformation.pop();
 
         glClear(GL_DEPTH_BUFFER_BIT);
@@ -125,31 +120,34 @@ public:
         transformation.push();
         transformation.translate(glm::vec3(10, 10, 0.0));
         transformation.scale(glm::vec3(10, 10, 1));
-        m_LineChart1->draw(m_Context, transformation.state(), m_Camera2D.getViewMatrix(), m_Camera2D.getProjectionMatrix());
+        m_LineChart1->draw(*context, transformation.state(), m_Camera2D.getViewMatrix(), m_Camera2D.getProjectionMatrix());
         transformation.pop();
 
         transformation.push();
         transformation.translate(glm::vec3(10, 120, 0.0));
         transformation.scale(glm::vec3(10, 10, 1));
-        m_LineChart2->draw(m_Context, transformation.state(), m_Camera2D.getViewMatrix(), m_Camera2D.getProjectionMatrix());
+        m_LineChart2->draw(*context, transformation.state(), m_Camera2D.getViewMatrix(), m_Camera2D.getProjectionMatrix());
         transformation.pop();
 
         transformation.push();
-        transformation.translate(glm::vec3(10, m_Window->height() - 10, 0.0));
+        transformation.translate(glm::vec3(10, (float)height() - 10, 0.0));
         transformation.scale(glm::vec3(10, 10, 1));
-        m_IconMap->draw(m_Context, transformation.state(), m_Camera2D.getViewMatrix(), m_Camera2D.getProjectionMatrix());
+        m_IconMap->draw(*context, transformation.state(), m_Camera2D.getViewMatrix(), m_Camera2D.getProjectionMatrix());
 
         transformation.pop();
-
-        finish();
     }
 
-    virtual void idle()
+    virtual void idle(Context* context)
     {
+        (void) context;
+
         float t = 0.1f * static_cast<float>(m_Clock.milliseconds()) / 1000.0f;
         m_Camera3D.lookAt(glm::vec3(50 * cos(t), 25, 50 * sin(t)), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+    }
 
-        glutPostRedisplay();
+    inline float gaussian(float x, float mu, float sigma)
+    {
+        return (1.0 / (sigma * sqrt(2 * M_PI))) * exp(- ((x - mu) * (x - mu)) / (2 * sigma * sigma));
     }
 
 private:
@@ -166,10 +164,8 @@ private:
 
 int main(int argc, char** argv)
 {
-    Demo demo;
-    demo.create(argc, argv);
-    demo.addWindow("Charts", 1024, 728);
-    demo.initialize();
-    demo.run();
-    demo.destroy();
+    auto demo = new Raindance(argc, argv);
+    demo->add(new DemoWindow("Charts", 1024, 728));
+    demo->run();
+    delete demo;
 }

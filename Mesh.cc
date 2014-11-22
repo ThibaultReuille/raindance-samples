@@ -3,7 +3,10 @@
 #include <raindance/Core/Primitives/Cube.hh>
 #include <raindance/Core/Transformation.hh>
 
-const std::string g_VertexShader =                          
+int g_ParticleCount = 0;
+
+const std::string g_VertexShader =     
+"#version 120                                                                           \n"                     
 "uniform mat4 u_ModelViewProjectionMatrix;                                              \n"
 "                                                                                       \n"
 "attribute vec3 a_Position;                                                             \n"
@@ -19,6 +22,7 @@ const std::string g_VertexShader =
 "}                                                                                      \n";
 
 const std::string g_FragmentShader =
+"#version 120                \n"
 "#ifdef GL_ES                \n"
 "precision mediump float;    \n"
 "#endif                      \n"
@@ -62,7 +66,7 @@ public:
             m_VertexBuffer.generate(Buffer::STATIC);
         }
         {
-            for (int n = 0; n < 10000; n++)
+            for (int n = 0; n < g_ParticleCount; n++)
             {
                 float d = 50;
                 glm::vec3 p;
@@ -91,6 +95,11 @@ public:
         ResourceManager::getInstance().unload(m_Shader);
     }
 
+    virtual void initialize(Context* context)
+    {
+        (void) context;
+    }
+
     virtual void draw(Context* context, Camera& camera, Transformation& transformation)
     {
         m_Shader->use();
@@ -117,11 +126,11 @@ private:
     Buffer m_InstanceBuffer;
 };
 
-class DemoWindow : public Window
+class DemoWindow : public GLFW::Window
 {
 public:
     DemoWindow(const char* title, int width, int height)
-    : Window(title, width, height)
+    : GLFW::Window(title, width, height)
     {
         m_Camera.setPerspectiveProjection(60.0f, (float)this->width() / this->height(), 0.1f, 1024.0f);
         m_Camera.lookAt(glm::vec3(1.5, 2, 2.5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
@@ -149,9 +158,9 @@ public:
     virtual void idle(Context* context)
     {
         float t = context->clock().seconds() / 4;
-        float r = 100;
+        float r = 125 + 25 * cos(t / 3);
 
-        glm::vec3 pos = glm::vec3(r * cos(t), 0, r * sin(t));
+        glm::vec3 pos = glm::vec3(r * cos(t), r * cos(t / 2), r * sin(t));
 
         m_Camera.lookAt(pos, glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
     }
@@ -161,43 +170,21 @@ private:
     Mesh* m_Mesh;
 };
 
-class Demo : public RainDance
-{
-public:
-    virtual void initialize()
-    {
-        auto id = m_WindowManager.add(new DemoWindow("Cube", 1024, 728));
-        m_WindowManager.bind(id);
-    }
-
-    virtual void draw()
-    {
-        Geometry::beginFrame();
-
-        m_WindowManager.active()->preDraw(&m_Context);
-        m_WindowManager.active()->draw(&m_Context);
-        m_WindowManager.active()->postDraw(&m_Context);
-
-        finish();
-
-        Geometry::endFrame();
-    }
-
-    virtual void idle()
-    {
-        static_cast<DemoWindow*>(m_WindowManager.active())->idle(&m_Context);
-        postRedisplay();
-    }
-};
-
 int main(int argc, char** argv)
 {
-    Demo demo;
+    if (argc != 2)
+    {
+        LOG("Usage: %s <number of particles>\n", argv[0]);
+        return 0;
+    }
 
-    demo.create(argc, argv);
+    g_ParticleCount = std::stoi(std::string(argv[1]));
 
-    demo.initialize();
-    demo.run();
+    auto demo = new Raindance(argc, argv);
 
-    demo.destroy();
+    demo->add(new DemoWindow("Mesh", 800, 600));
+
+    demo->run();
+
+    delete demo;
 }

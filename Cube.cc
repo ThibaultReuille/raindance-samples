@@ -28,11 +28,11 @@ const std::string g_FragmentShader =
 "    gl_FragColor = v_Color; \n"
 "}                           \n";
 
-class DemoWindow : public Window
+class DemoWindow : public GLFW::Window
 {
 public:
     DemoWindow(const char* title, int width, int height)
-    : Window(title, width, height)
+    : GLFW::Window(title, width, height)
     {
         m_Cube = NULL;
         m_Shader = NULL;
@@ -55,6 +55,11 @@ public:
         delete m_Cube;
     }
 
+    virtual void initialize(Context* context)
+    {
+        (void) context;
+    }
+
     virtual void draw(Context* context)
     {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -67,48 +72,21 @@ public:
         context->geometry().unbind(m_Cube->getVertexBuffer());
     }
 
+    virtual void idle(Context* context)
+    {
+        (void) context;
+    }
+
 private:
     Camera m_Camera;
     Cube* m_Cube;
     Shader::Program* m_Shader;
 };
 
-class Demo : public RainDance
-{
-public:
-    virtual void initialize()
-    {
-        auto id = m_WindowManager.add(new DemoWindow("Cube", 800, 600));
-        m_WindowManager.bind(id);
-    }
-
-    virtual void draw()
-    {
-        Geometry::beginFrame();
-
-        m_WindowManager.active()->preDraw(&m_Context);
-        m_WindowManager.active()->draw(&m_Context);
-        m_WindowManager.active()->postDraw(&m_Context);
-
-        finish();
-
-        Geometry::endFrame();
-    }
-
-    virtual void idle()
-    {
-        postRedisplay();
-    }
-};
-
 int main(int argc, char** argv)
 {
-    Demo demo;
-
-    demo.create(argc, argv);
-
-    demo.initialize();
-    demo.run();
-
-    demo.destroy();
+    auto demo = new Raindance(argc, argv);
+    demo->add(new DemoWindow("Cube", 1024, 728));
+    demo->run();
+    delete demo;
 }

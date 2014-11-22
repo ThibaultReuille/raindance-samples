@@ -4,19 +4,11 @@
 #include <raindance/Core/Text.hh>
 #include <raindance/Core/Font.hh>
 
-class Demo : public RainDance
+class DemoWindow : public GLFW::Window
 {
 public:
-    Demo()
-    : m_Font(NULL)
-    {
-    }
-
-    virtual ~Demo()
-    {
-    }
-
-    virtual void initialize()
+    DemoWindow(const char* title, int width, int height)
+    : GLFW::Window(title, width, height), m_Font(NULL)
     {
         m_Camera.setOrthographicProjection(0, 1000, 0, 1000, -100, 600);
         m_Camera.lookAt(glm::vec3(0.0, 0.0, 200.0), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
@@ -28,12 +20,17 @@ public:
         m_Text.set("Data is Beautiful.", m_Font);
     }
 
-    virtual void destroy()
+    virtual ~DemoWindow()
     {
         SAFE_DELETE(m_Font);
     }
 
-    virtual void draw()
+    virtual void initialize(Context* context)
+    {
+        (void) context;
+    }
+
+    virtual void draw(Context* context)
     {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         
@@ -54,11 +51,15 @@ public:
             color.a = 1.0;
 
             m_Text.setColor(color);
-            m_Text.draw(context(), m_Camera.getProjectionMatrix() * m_Camera.getViewMatrix() * transformation.state());
+            m_Text.draw(*context, m_Camera.getProjectionMatrix() * m_Camera.getViewMatrix() * transformation.state());
             transformation.translate(glm::vec3(0, m_Font->getSize(), 0.0));
             transformation.scale(glm::vec3(1.05, 1.05, 1.0));
         }
-        finish();
+    }
+
+    virtual void idle(Context* context)
+    {
+        (void) context;
     }
 
 private:
@@ -70,14 +71,8 @@ private:
 
 int main(int argc, char** argv)
 {
-    Demo demo;
-
-    demo.create(argc, argv);
-
-    demo.addWindow("Fonts", 1024, 728);
-
-    demo.initialize();
-    demo.run();
-
-    demo.destroy();
+    auto demo = new Raindance(argc, argv);
+    demo->add(new DemoWindow("Fonts", 1024, 728));
+    demo->run();
+    delete demo;
 }

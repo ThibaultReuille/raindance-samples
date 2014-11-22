@@ -82,7 +82,7 @@ const std::string g_FragmentShader = "  \n\
     }                                   \n\
 ";
 
-class Demo : public RainDance
+class DemoWindow : public GLFW::Window
 {
 public:
     struct Agent
@@ -110,24 +110,34 @@ public:
 		}
     };
 
-    Demo()
+    DemoWindow(const char* title, int width, int height)
+    : GLFW::Window(title, width, height)
     {
         m_Grid = NULL;
         m_Agent = NULL;
         m_AgentShader = NULL;
     }
 
-    virtual ~Demo()
+    virtual ~DemoWindow()
     {
+        SAFE_DELETE(m_Grid);
+        ResourceManager::getInstance().unload(m_AgentShader);
     }
 
-    virtual void initialize()
+    virtual void initialize(Context* context)
     {
-        m_Camera3D.setPerspectiveProjection(60.0f, (float)m_Window->width() / (float)m_Window->height(), 0.1f, 1024.0f);
+        m_Camera3D.setPerspectiveProjection(60.0f, (float)width() / (float)height(), 0.1f, 1024.0f);
         m_Camera3D.lookAt(glm::vec3(-50.0, 30.0, -50.0), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 
-        m_Grid = new Grid(64, 64);
-        m_Grid->setColor(glm::vec4(0.5, 0.5, 0.5, 1.0));
+        Grid::Parameters params = {};
+        params.Dimension = glm::vec2(70, 70);
+        params.Origin = glm::vec2(0, 0);
+        params.Step = glm::vec2(5.0, 5.0);
+        params.Division = glm::vec2(10.0, 10.0);
+        params.Color = glm::vec4(0.5, 0.5, 0.5, 1.0);
+        params.BackgroundColor = 0.5f * params.Color;
+
+        m_Grid = new Grid(params);
 
         float radius = 32;
         for (float alpha = 0; alpha < 2 * M_PI; alpha += 0.05)
@@ -163,18 +173,12 @@ public:
 		m_LastTime = 0.0;
     }
 
-    virtual void destroy()
-    {
-        SAFE_DELETE(m_Grid);
-        ResourceManager::getInstance().unload(m_AgentShader);
-    }
-
     virtual void reshape(int width, int height)
     {
         m_Camera3D.reshape(width, height);
     }
 
-    virtual void draw()
+    virtual void draw(Context* context)
     {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -182,8 +186,8 @@ public:
 
         transformation.push();
         transformation.rotate(90, glm::vec3(1.0, 0, 0));
-        transformation.translate(glm::vec3(-(float) m_Grid->width() / 2, -(float) m_Grid->height() / 2, 0));
-        m_Grid->draw(m_Context, transformation.state(), m_Camera3D.getViewMatrix(), m_Camera3D.getProjectionMatrix());
+        transformation.translate(glm::vec3(-m_Grid->parameters().Dimension.x / 2, -m_Grid->parameters().Dimension.y / 2, 0));
+        m_Grid->draw(*context, transformation, m_Camera3D);
         transformation.pop();
 
         m_AgentShader->use();
@@ -210,23 +214,23 @@ public:
                 m_AgentShader->uniform("u_Material.Specular").set(m_Material.getSpecular());
                 m_AgentShader->uniform("u_Material.Shininess").set(m_Material.getShininess());
                         
-                m_Context.geometry().bind(m_Agent->getVertexBuffer(), *m_AgentShader);
-                m_Context.geometry().drawArrays(GL_TRIANGLE_STRIP, 0, m_Agent->getVertexBuffer().size() / sizeof(Cylinder::Vertex));
-                m_Context.geometry().unbind(m_Agent->getVertexBuffer());
+                context->geometry().bind(m_Agent->getVertexBuffer(), *m_AgentShader);
+                context->geometry().drawArrays(GL_TRIANGLE_STRIP, 0, m_Agent->getVertexBuffer().size() / sizeof(Cylinder::Vertex));
+                context->geometry().unbind(m_Agent->getVertexBuffer());
             }
 		    transformation.pop();
         }
-
-		finish();
 	}
 
-    virtual void idle()
+    virtual void idle(Context* context)
     {
+        (void) context;
+        
         float t = m_Clock.seconds();
 
         m_Camera3D.lookAt(glm::vec3(48 * cos(t / 10), 20, 48 * sin(t / 10)), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 
-		glm::vec3 dim = glm::vec3((float)m_Grid->width(), 0, (float)m_Grid->height());
+		glm::vec3 dim = glm::vec3(m_Grid->parameters().Dimension.x, 0, m_Grid->parameters().Dimension.y);
 
 		float dt = t - m_LastTime;
 		for (auto& agent : m_Agents)
@@ -243,7 +247,6 @@ public:
 		}
 
 		m_LastTime = t;
-        glutPostRedisplay();
     }
 
 private:
@@ -265,10 +268,8 @@ private:
 
 int main(int argc, char** argv)
 {
-    Demo demo;
-    demo.create(argc, argv);
-    demo.addWindow("Agents", 1024, 728);
-    demo.initialize();
-    demo.run();
-    demo.destroy();
+    auto demo = new Raindance(argc, argv);
+    demo->add(new DemoWindow("Agents", 1024, 728));
+    demo->run();
+    delete demo;
 }

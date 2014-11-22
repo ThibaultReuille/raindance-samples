@@ -86,7 +86,7 @@ const std::string g_ComputeProgram =
     "     }                                                                             \n"
     "}                                                                                  \n";
 
-class Demo : public RainDance
+class DemoWindow : public GLFW::Window
 {
 public:
     struct Node
@@ -105,18 +105,18 @@ public:
         glm::vec4 Direction;
     };
 
-    Demo()
-    : m_Sphere(NULL), m_Shader(NULL)
+    DemoWindow(const char* title, int width, int height)
+    : GLFW::Window(title, width, height)
     {
     }
-
-    virtual ~Demo()
+    
+    virtual ~DemoWindow()
     {
         ResourceManager::getInstance().unload(m_Shader);
         delete m_Sphere;
     }
 
-    virtual void initialize()
+    virtual void initialize(Context* context)
     {
         m_NumParticles = 4096;
         m_NumForces = 4096;
@@ -128,9 +128,9 @@ public:
 
         // Scene initialization
         {
-            m_Camera.setPerspectiveProjection(60.0f, (float)m_Window->width() / (float)m_Window->height(), 0.1f, 1000000.0f);
+            m_Camera.setPerspectiveProjection(60.0f, (float)width() / (float)height(), 0.1f, 1000000.0f);
 
-            m_SphericalCameraController.bind(&m_Context, &m_Camera);
+            m_SphericalCameraController.bind(context, &m_Camera);
             m_SphericalCameraController.setRadius(2000);
             m_SphericalCameraController.updateCamera();
 
@@ -200,7 +200,7 @@ public:
         }
     }
 
-    virtual void draw()
+    virtual void draw(Context* context)
     {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -213,16 +213,16 @@ public:
             model = glm::translate(glm::mat4(), glm::vec3(n.Position));
             m_Shader->uniform("u_ModelViewProjectionMatrix").set(m_Camera.getViewProjectionMatrix() * model);
 
-            m_Context.geometry().bind(m_Sphere->getVertexBuffer(), *m_Shader);
-            m_Context.geometry().drawElements(GL_TRIANGLES, m_Sphere->getIndexBuffer().size() / sizeof(unsigned short int), GL_UNSIGNED_SHORT, m_Sphere->getIndexBuffer().ptr());
-            m_Context.geometry().unbind(m_Sphere->getVertexBuffer());
+            context->geometry().bind(m_Sphere->getVertexBuffer(), *m_Shader);
+            context->geometry().drawElements(GL_TRIANGLES, m_Sphere->getIndexBuffer().size() / sizeof(unsigned short int), GL_UNSIGNED_SHORT, m_Sphere->getIndexBuffer().ptr());
+            context->geometry().unbind(m_Sphere->getVertexBuffer());
         }
-
-        finish();
     }
 
-    virtual void idle()
+    virtual void idle(Context* context)
     {
+        (void) context;
+        
         if (m_Iterations == 0)
         {
             m_RepulsionK->setArgument(0, *m_InputNodeBuffer);
@@ -262,7 +262,6 @@ public:
         }
 
         m_SphericalCameraController.updateCamera();
-        glutPostRedisplay();
     }
 
     void keyboard(unsigned char key, int x, int y)
@@ -272,7 +271,7 @@ public:
         m_SphericalCameraController.onKeyboard(key, Controller::KEY_DOWN);
         if (key == 'f')
         {
-           m_Window->fullscreen();
+           // TODO : m_Window->fullscreen();
         }
     }
 
@@ -337,10 +336,8 @@ private:
 
 int main(int argc, char** argv)
 {
-    Demo demo;
-    demo.create(argc, argv);
-    demo.addWindow("Particles", 1024, 728);
-    demo.initialize();
-    demo.run();
-    demo.destroy();
+    auto demo = new Raindance(argc, argv);
+    demo->add(new DemoWindow("Particles", 1024, 728));
+    demo->run();
+    delete demo;
 }
