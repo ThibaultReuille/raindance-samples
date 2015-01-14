@@ -5,12 +5,12 @@
 #include <raindance/Core/Charts/HeightMap.hh>
 #include <raindance/Core/Charts/IconMap.hh>
 
-class DemoWindow : public GLFW::Window
+class DemoWindow : public Window
 {
 public:
     
-    DemoWindow(const char* title, int width, int height)
-    : GLFW::Window(title, width, height)
+    DemoWindow(const char* title, int width, int height, bool fullscreen = false)
+    : Window(title, width, height, fullscreen)
     {
         m_IconMap = NULL;
         m_LineChart1 = NULL;
@@ -20,7 +20,8 @@ public:
         m_Camera2D.setOrthographicProjection(0, 1024, 0, 728, 0.1f, 1024.0f);
         m_Camera2D.lookAt(glm::vec3(0.0, 0.0, 5.0), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 
-        m_Camera3D.setPerspectiveProjection(60.0f, (float)width / (float)height, 0.1f, 1024.0f);
+        auto viewport = this->getViewport();
+        m_Camera3D.setPerspectiveProjection(60.0f, viewport.getDimension()[0] / viewport.getDimension()[1], 0.1f, 1024.0f);
         m_Camera3D.lookAt(glm::vec3(-50.0, 30.0, -50.0), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 
         {
@@ -106,6 +107,8 @@ public:
 
     virtual void draw(Context* context)
     {
+        auto viewport = this->getViewport();
+
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
         Transformation transformation;
@@ -130,7 +133,7 @@ public:
         transformation.pop();
 
         transformation.push();
-        transformation.translate(glm::vec3(10, (float)height() - 10, 0.0));
+        transformation.translate(glm::vec3(10, viewport.getDimension()[1] - 10, 0.0));
         transformation.scale(glm::vec3(10, 10, 1));
         m_IconMap->draw(*context, transformation.state(), m_Camera2D.getViewMatrix(), m_Camera2D.getProjectionMatrix());
 

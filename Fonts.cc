@@ -4,11 +4,11 @@
 #include <raindance/Core/Text.hh>
 #include <raindance/Core/Font.hh>
 
-class DemoWindow : public GLFW::Window
+class DemoWindow : public Window
 {
 public:
-    DemoWindow(const char* title, int width, int height)
-    : GLFW::Window(title, width, height), m_Font(NULL)
+    DemoWindow(const char* title, int width, int height, bool fullscreen = false)
+    : Window(title, width, height, fullscreen), m_Font(NULL)
     {
         m_Camera.setOrthographicProjection(0, 1000, 0, 1000, -100, 600);
         m_Camera.lookAt(glm::vec3(0.0, 0.0, 200.0), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));

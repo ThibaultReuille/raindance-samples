@@ -86,7 +86,7 @@ const std::string g_ComputeProgram =
     "     }                                                                             \n"
     "}                                                                                  \n";
 
-class DemoWindow : public GLFW::Window
+class DemoWindow : public Window
 {
 public:
     struct Node
@@ -105,8 +105,8 @@ public:
         glm::vec4 Direction;
     };
 
-    DemoWindow(const char* title, int width, int height)
-    : GLFW::Window(title, width, height)
+    DemoWindow(const char* title, int width, int height, bool fullscreen = false)
+    : Window(title, width, height, fullscreen)
     {
     }
     
@@ -128,8 +128,9 @@ public:
 
         // Scene initialization
         {
-            m_Camera.setPerspectiveProjection(60.0f, (float)width() / (float)height(), 0.1f, 1000000.0f);
-
+            auto viewport = this->getViewport();
+            m_Camera.setPerspectiveProjection(60.0f, viewport.getDimension()[0] / viewport.getDimension()[1], 0.1f, 1024.0f);
+        
             m_SphericalCameraController.bind(context, &m_Camera);
             m_SphericalCameraController.setRadius(2000);
             m_SphericalCameraController.updateCamera();
@@ -264,46 +265,24 @@ public:
         m_SphericalCameraController.updateCamera();
     }
 
-    void keyboard(unsigned char key, int x, int y)
+    void onKey(int key, int scancode, int action, int mods) override
     {
-        (void) x;
-        (void) y;
-        m_SphericalCameraController.onKeyboard(key, Controller::KEY_DOWN);
-        if (key == 'f')
-        {
-           // TODO : m_Window->fullscreen();
-        }
+        m_SphericalCameraController.onKey(key, scancode, action, mods);
     }
 
-    void keyboardUp(unsigned char key, int x, int y)
+    void onScroll(double xoffset, double yoffset) override
     {
-        (void) x;
-        (void) y;
-        m_SphericalCameraController.onKeyboard(key, Controller::KEY_UP);
+        m_SphericalCameraController.onScroll(xoffset, yoffset);
     }
 
-    void mouse(int button, int state, int x, int y)
+    void onCursorPos(double xpos, double ypos) override
     {
-        m_SphericalCameraController.mouse(button, state, x, y);
+        m_SphericalCameraController.onCursorPos(xpos, ypos);
     }
 
-    void motion(int x, int y)
+    void onMouseButton(int button, int action, int mods) override
     {
-        m_SphericalCameraController.motion(x, y);
-    }
-
-    void special(int key, int x, int y)
-    {
-        (void) x;
-        (void) y;
-        m_SphericalCameraController.onSpecial(key, Controller::KEY_DOWN);
-    }
-
-    void specialUp(int key, int x, int y)
-    {
-        (void) x;
-        (void) y;
-        m_SphericalCameraController.onSpecial(key, Controller::KEY_UP);
+        m_SphericalCameraController.onMouseButton(button, action, mods);
     }
 
 private:

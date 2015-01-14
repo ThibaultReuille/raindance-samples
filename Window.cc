@@ -1,10 +1,10 @@
 #include <raindance/Raindance.hh>
 
-class DemoWindow : public GLFW::Window
+class DemoWindow : public Window
 {
 public:
-    DemoWindow(const char* title, int width, int height)
-    : GLFW::Window(title, width, height)
+    DemoWindow(const char* title, int width, int height, bool fullscreen = false)
+    : Window(title, width, height, fullscreen)
     {
         glClearColor(0.2, 0.2, 0.2, 1.0);
     }

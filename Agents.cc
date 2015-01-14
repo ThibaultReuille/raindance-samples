@@ -82,7 +82,7 @@ const std::string g_FragmentShader = "  \n\
     }                                   \n\
 ";
 
-class DemoWindow : public GLFW::Window
+class DemoWindow : public Window
 {
 public:
     struct Agent
@@ -110,8 +110,8 @@ public:
 		}
     };
 
-    DemoWindow(const char* title, int width, int height)
-    : GLFW::Window(title, width, height)
+    DemoWindow(const char* title, int width, int height, bool fullscreen = false)
+    : Window(title, width, height, fullscreen)
     {
         m_Grid = NULL;
         m_Agent = NULL;
@@ -126,7 +126,10 @@ public:
 
     virtual void initialize(Context* context)
     {
-        m_Camera3D.setPerspectiveProjection(60.0f, (float)width() / (float)height(), 0.1f, 1024.0f);
+        (void) context;
+        
+        auto viewport = this->getViewport();
+        m_Camera3D.setPerspectiveProjection(60.0f, viewport.getDimension()[0] / viewport.getDimension()[1], 0.1f, 1024.0f);
         m_Camera3D.lookAt(glm::vec3(-50.0, 30.0, -50.0), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 
         Grid::Parameters params = {};

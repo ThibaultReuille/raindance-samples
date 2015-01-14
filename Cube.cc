@@ -28,16 +28,17 @@ const std::string g_FragmentShader =
 "    gl_FragColor = v_Color; \n"
 "}                           \n";
 
-class DemoWindow : public GLFW::Window
+class DemoWindow : public Window
 {
 public:
-    DemoWindow(const char* title, int width, int height)
-    : GLFW::Window(title, width, height)
+    DemoWindow(const char* title, int width, int height, bool fullscreen = false)
+    : Window(title, width, height, fullscreen)
     {
         m_Cube = NULL;
         m_Shader = NULL;
 
-        m_Camera.setPerspectiveProjection(60.0f, (float)this->width() / this->height(), 0.1f, 1024.0f);
+        auto viewport = this->getViewport();
+        m_Camera.setPerspectiveProjection(60.0f, viewport.getDimension()[0] / viewport.getDimension()[1], 0.1f, 1024.0f);
         m_Camera.lookAt(glm::vec3(1.5, 2, 2.5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 
         m_Cube = new Cube();

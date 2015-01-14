@@ -98,11 +98,11 @@ protected:
     Polyline* m_Polyline;
 };
 
-class DemoWindow : public GLFW::Window
+class DemoWindow : public Window
 {
 public:
-    DemoWindow(const char* title, int w, int h)
-    : GLFW::Window(title, w, h)
+    DemoWindow(const char* title, int w, int h, bool fullscreen = false)
+    : Window(title, w, h, fullscreen)
     {
         float width = static_cast<float>(w);
         float height = static_cast<float>(h);
@@ -112,7 +112,8 @@ public:
 
         {
             m_TimeSerie = new TimeSerie(600, glm::vec4(WHITE, 1.0));
-            m_TimeSerieAvg = new TimeSerie(600, glm::vec4(LOVE_RED, 1.0));
+            m_TimeSerieAvg1 = new TimeSerie(600, glm::vec4(LOVE_RED, 1.0));
+            m_TimeSerieAvg2 = new TimeSerie(600, glm::vec4(SKY_BLUE, 1.0));
             m_TimeSerieMin = new TimeSerie(600, glm::vec4(GUNMETAL, 1.0));
             m_TimeSerieMax = new TimeSerie(600, glm::vec4(GUNMETAL, 1.0));
         }
@@ -138,7 +139,8 @@ public:
     virtual ~DemoWindow()
     {
         SAFE_DELETE(m_TimeSerie);
-        SAFE_DELETE(m_TimeSerieAvg);
+        SAFE_DELETE(m_TimeSerieAvg1);
+        SAFE_DELETE(m_TimeSerieAvg2);
         SAFE_DELETE(m_TimeSerieMin);
         SAFE_DELETE(m_TimeSerieMax);
 
@@ -159,7 +161,8 @@ public:
         m_Grid->draw(*context, transformation, m_Camera);
 
         m_TimeSerie->draw(context, m_Camera);
-        m_TimeSerieAvg->draw(context, m_Camera);
+        m_TimeSerieAvg1->draw(context, m_Camera);
+        m_TimeSerieAvg2->draw(context, m_Camera);
         m_TimeSerieMin->draw(context, m_Camera);
         m_TimeSerieMax->draw(context, m_Camera);
     }
@@ -197,10 +200,13 @@ public:
 
             m_TimeSerie->push(tscale, _value);
 
-            m_TimeSerie->getStats(50, &moving_avg, &moving_min, &moving_max);
-            m_TimeSerieAvg->push(tscale, moving_avg);
+            m_TimeSerie->getStats(25, &moving_avg, &moving_min, &moving_max);
+            m_TimeSerieAvg1->push(tscale, moving_avg);
             m_TimeSerieMin->push(tscale, moving_min);
             m_TimeSerieMax->push(tscale, moving_max);
+
+            m_TimeSerie->getStats(50, &moving_avg, &moving_min, &moving_max);
+            m_TimeSerieAvg2->push(tscale, moving_avg);    
 
             _value += RANDOM_FLOAT(-10.0, 10.0);
             _value = std::max(min, std::min(max, _value));
@@ -215,7 +221,8 @@ public:
 private:
     Camera m_Camera;
     TimeSerie* m_TimeSerie;
-    TimeSerie* m_TimeSerieAvg;
+    TimeSerie* m_TimeSerieAvg1;
+    TimeSerie* m_TimeSerieAvg2;
     TimeSerie* m_TimeSerieMin;
     TimeSerie* m_TimeSerieMax;
 
