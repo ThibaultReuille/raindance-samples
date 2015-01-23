@@ -5,13 +5,14 @@
 #include <raindance/Core/Primitives/Sphere.hh>
 
 const std::string g_VertexShader =
-    "attribute vec3 a_Position;                                                           \n"
-    "attribute vec3 a_Normal;                                                             \n"
-    "attribute vec2 a_Texcoord;                                                           \n"
+    "#version 330                                                                         \n"
+    "layout(location = 0) in vec3 a_Position;                                             \n"
+    "layout(location = 1) in vec3 a_Normal;                                               \n"
+    "layout(location = 2) in vec2 a_Texcoord;                                             \n"
     "                                                                                     \n"
     "uniform mat4 u_ModelViewProjectionMatrix;                                            \n"
     "                                                                                     \n"
-    "varying vec4 v_Color;                                                                \n"
+    "out vec4 v_Color;                                                                    \n"
     "                                                                                     \n"
     "void main(void)                                                                      \n"
     "{                                                                                    \n"
@@ -20,15 +21,17 @@ const std::string g_VertexShader =
     "}                                                                                    \n";
 
 const std::string g_FragmentShader =
+    "#version 330                \n"
     "#ifdef GL_ES                \n"
     "precision mediump float;    \n"
     "#endif                      \n"
     "                            \n"
-    "varying vec4 v_Color;       \n"
+    "in vec4 v_Color;            \n"
+    "out vec4 FragColor;         \n"
     "                            \n"
     "void main(void)             \n"
     "{                           \n"
-    "    gl_FragColor = v_Color; \n"
+    "    FragColor = v_Color;    \n"
     "}                           \n";
 
 const std::string g_ComputeProgram =

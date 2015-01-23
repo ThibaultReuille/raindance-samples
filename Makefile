@@ -1,8 +1,8 @@
 CC=clang++
 
 # MacOSX CFLAGS
-CFLAGS=-W -Wall -ansi -Wno-missing-field-initializers -O2 -std=c++11 -stdlib=libc++ -Wno-deprecated -framework OpenGL -framework OpenCL
-LDFLAGS=-lglfw3
+CFLAGS=-W -Wall -ansi -Wno-missing-field-initializers -O2 -std=c++11 -stdlib=libc++ -Wno-deprecated `pkg-config --cflags glew glfw3` -framework OpenCL
+LDFLAGS=`pkg-config --static --libs glew glfw3`
 #Debug
 #CFLAGS=-W -Wall -ansi -Wno-missing-field-initializers -std=c++11 -stdlib=libc++ -Wno-deprecated -framework OpenGL -framework OpenCL -framework GLUT -g
 

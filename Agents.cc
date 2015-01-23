@@ -7,6 +7,7 @@
 #include <raindance/Core/Material.hh>
 
 const std::string g_VertexShader = "                                                      \n\
+    #version 330                                                                          \n\
     struct Light                                                                          \n\
     {                                                                                     \n\
         int Type;                                                                         \n\
@@ -23,9 +24,9 @@ const std::string g_VertexShader = "                                            
         float Shininess;                                                                  \n\
     };                                                                                    \n\
                                                                                           \n\
-    attribute vec3 a_Position;                                                            \n\
-    attribute vec3 a_Normal;                                                              \n\
-    // attribute vec2 a_Texcoord;                                                         \n\
+    layout(location = 0) in vec3 a_Position;                                              \n\
+    layout(location = 1) in vec3 a_Normal;                                                \n\
+    // layout(location = 2) in vec2 a_Texcoord;                                           \n\
                                                                                           \n\
     uniform mat4 u_ModelMatrix;                                                           \n\
     uniform mat4 u_ViewMatrix;                                                            \n\
@@ -35,10 +36,10 @@ const std::string g_VertexShader = "                                            
     uniform Light u_Light;                                                                \n\
     uniform Material u_Material;                                                          \n\
                                                                                           \n\
-    varying vec3 v_Position;                                                              \n\
-    // varying vec2 v_Texcoord;                                                           \n\
-    varying vec3 v_Normal;                                                                \n\
-    varying vec4 v_Color;                                                                 \n\
+    out vec3 v_Position;                                                                  \n\
+    // out vec2 v_Texcoord;                                                               \n\
+    out vec3 v_Normal;                                                                    \n\
+    out vec4 v_Color;                                                                     \n\
                                                                                           \n\
     void main(void)                                                                       \n\
     {                                                                                     \n\
@@ -70,15 +71,17 @@ const std::string g_VertexShader = "                                            
 ";
 
 const std::string g_FragmentShader = "  \n\
+    #version 330                        \n\
     #ifdef GL_ES                        \n\
     precision mediump float;            \n\
     #endif                              \n\
                                         \n\
-    varying vec4 v_Color;               \n\
+    in vec4 v_Color;                    \n\
+    out vec4 FragColor;                 \n\
                                         \n\
     void main(void)                     \n\
     {                                   \n\
-        gl_FragColor = v_Color;         \n\
+        FragColor = v_Color;            \n\
     }                                   \n\
 ";
 

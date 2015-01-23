@@ -2,37 +2,10 @@
 #include <raindance/Core/Camera/Camera.hh>
 #include <raindance/Core/Primitives/Cube.hh>
 #include <raindance/Core/Transformation.hh>
+#include <raindance/Core/FS.hh>
+#include <raindance/Core/Icon.hh>
 
 int g_ParticleCount = 0;
-
-const std::string g_VertexShader =     
-"#version 120                                                                           \n"                     
-"uniform mat4 u_ModelViewProjectionMatrix;                                              \n"
-"                                                                                       \n"
-"attribute vec3 a_Position;                                                             \n"
-"attribute vec3 a_Translation;                                                          \n"
-"attribute vec4 a_Color;                                                                \n"
-"                                                                                       \n"
-"varying vec4 v_Color;                                                                  \n"
-"                                                                                       \n"
-"void main(void)                                                                        \n"
-"{                                                                                      \n"
-"    v_Color = a_Color;                                                                 \n"
-"    gl_Position = u_ModelViewProjectionMatrix * vec4(a_Position + a_Translation, 1.0); \n"
-"}                                                                                      \n";
-
-const std::string g_FragmentShader =
-"#version 120                \n"
-"#ifdef GL_ES                \n"
-"precision mediump float;    \n"
-"#endif                      \n"
-"                            \n"
-"varying vec4 v_Color;       \n"
-"                            \n"
-"void main(void)             \n"
-"{                           \n"
-"    gl_FragColor = v_Color; \n"
-"}                           \n";
 
 class Mesh
 {
@@ -41,27 +14,37 @@ public:
     struct Vertex
     {
         glm::vec3 Position;
+        glm::vec2 UV;
         // glm::vec3 Normal;
     };
 
     struct Instance
     {
         glm::vec3 Translation;
+        glm::vec3 Scale;
         glm::vec4 Color;
     };
 
     Mesh()
     {
-        m_Shader = ResourceManager::getInstance().loadShader("cube", g_VertexShader, g_FragmentShader);
-        // m_Shader->dump();
+        FS::TextFile vert("Assets/mesh_instanced.vert");
+        FS::TextFile frag("Assets/mesh_instanced.frag");
+
+        FS::BinaryFile texture("Assets/mesh_particle.png");
+        m_Icon = new Icon();
+        m_Icon->load("particles/1", texture);
+
+        m_Shader = ResourceManager::getInstance().loadShader("mesh_instanced", vert.content(), frag.content());
+        m_Shader->dump();
 
         {
-            m_VertexBuffer << glm::vec3(-0.5, -0.5, 0.0);
-            m_VertexBuffer << glm::vec3( 0.5, -0.5, 0.0);
-            m_VertexBuffer << glm::vec3(-0.5,  0.5, 0.0);
-            m_VertexBuffer << glm::vec3( 0.5,  0.5, 0.0);
+            m_VertexBuffer << glm::vec3(-0.5, -0.5, 0.0) << glm::vec2(0, 1);
+            m_VertexBuffer << glm::vec3( 0.5, -0.5, 0.0) << glm::vec2(1, 1);
+            m_VertexBuffer << glm::vec3(-0.5,  0.5, 0.0) << glm::vec2(0, 0);
+            m_VertexBuffer << glm::vec3( 0.5,  0.5, 0.0) << glm::vec2(1, 0);
         
             m_VertexBuffer.describe("a_Position", 3, GL_FLOAT, sizeof(Vertex), 0);
+            m_VertexBuffer.describe("a_UV", 2, GL_FLOAT, sizeof(Vertex), sizeof(glm::vec3));
      
             m_VertexBuffer.generate(Buffer::STATIC);
         }
@@ -69,22 +52,29 @@ public:
             for (int n = 0; n < g_ParticleCount; n++)
             {
                 float d = 50;
-                glm::vec3 p;
-                p.x = d * RANDOM_FLOAT(-1.0, 1.0);
-                p.y = d * RANDOM_FLOAT(-1.0, 1.0);
-                p.z = d * RANDOM_FLOAT(-1.0, 1.0);
 
-                glm::vec4 c;
-                c.r = RANDOM_FLOAT(0.0, 1.0);
-                c.g = RANDOM_FLOAT(0.0, 1.0);
-                c.b = RANDOM_FLOAT(0.0, 1.0);
-                c.a = 1.0;
+                Instance i;
 
-                m_InstanceBuffer << p << c;
+                i.Translation = d * glm::vec3(
+                    RANDOM_FLOAT(-1.0, 1.0),
+                    RANDOM_FLOAT(-1.0, 1.0),
+                    RANDOM_FLOAT(-1.0, 1.0));
+                
+                float s = RANDOM_FLOAT(0.5, 2.0);
+                i.Scale = glm::vec3(s, s, 1.0);
+                
+                i.Color = glm::vec4(
+                    RANDOM_FLOAT(0.0, 1.0),
+                    RANDOM_FLOAT(0.0, 1.0),
+                    RANDOM_FLOAT(0.0, 1.0),
+                    1.0);
+
+                m_InstanceBuffer.push(&i, sizeof(Instance));
             }
 
             m_InstanceBuffer.describe("a_Translation", 3, GL_FLOAT, sizeof(Instance), 0);
-            m_InstanceBuffer.describe("a_Color",       4, GL_FLOAT, sizeof(Instance), sizeof(glm::vec3));
+            m_InstanceBuffer.describe("a_Scale", 3, GL_FLOAT, sizeof(Instance), sizeof(glm::vec3));
+            m_InstanceBuffer.describe("a_Color", 4, GL_FLOAT, sizeof(Instance), 2 * sizeof(glm::vec3));
 
             m_InstanceBuffer.generate(Buffer::STATIC);
         }
@@ -92,6 +82,7 @@ public:
 
     virtual ~Mesh()
     {
+        SAFE_DELETE(m_Icon);
         ResourceManager::getInstance().unload(m_Shader);
     }
 
@@ -102,17 +93,22 @@ public:
 
     virtual void draw(Context* context, Camera& camera, Transformation& transformation)
     {
+        glDisable(GL_DEPTH_TEST);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_DST_ALPHA);
+        
         m_Shader->use();
+        m_Shader->uniform("u_Texture").set(m_Icon->getTexture(0));
         m_Shader->uniform("u_ModelViewProjectionMatrix").set(camera.getViewProjectionMatrix() * transformation.state());
 
         context->geometry().bind(m_VertexBuffer, *m_Shader);        
         context->geometry().bind(m_InstanceBuffer, *m_Shader);
         
         glVertexAttribDivisorARB(m_Shader->attribute("a_Position").location(), 0); // Same vertices per instance
-        // glVertexAttribDivisorARB(m_VertexBuffer.descriptions()[1].Location, 0);
 
         glVertexAttribDivisorARB(m_Shader->attribute("a_Translation").location(), 1);
-        glVertexAttribDivisorARB(m_Shader->attribute("a_Color").location(), 0);
+        glVertexAttribDivisorARB(m_Shader->attribute("a_Scale").location(), 1);
+        glVertexAttribDivisorARB(m_Shader->attribute("a_Color").location(), 1);
 
         context->geometry().drawArraysInstanced(GL_TRIANGLE_STRIP, 0, m_VertexBuffer.size() / sizeof(Vertex), m_InstanceBuffer.size() / sizeof(Instance));
         
@@ -122,6 +118,7 @@ public:
 
 private:
     Shader::Program* m_Shader;
+    Icon* m_Icon;
     Buffer m_VertexBuffer;
     Buffer m_InstanceBuffer;
 };
