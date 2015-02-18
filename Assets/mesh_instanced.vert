@@ -1,6 +1,7 @@
 #version 330
 
-uniform mat4 u_ModelViewProjectionMatrix;
+uniform mat4 u_ModelViewMatrix;
+uniform mat4 u_ProjectionMatrix;
 
 layout(location = 0) in vec3 a_Position;
 layout(location = 1) in vec2 a_UV;
@@ -14,9 +15,10 @@ out vec2 v_UV;
 
 void main(void)
 {
-	v_UV = a_UV;
-	v_Color = a_Color;
 	vec3 pos = a_Position * a_Scale + a_Translation;
 
-   	gl_Position = u_ModelViewProjectionMatrix * vec4(pos, 1.0);
+   	gl_Position = u_ProjectionMatrix * u_ModelViewMatrix * vec4(pos, 1.0);
+
+	v_UV = a_UV;
+	v_Color = a_Color;
 }

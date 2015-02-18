@@ -49,8 +49,10 @@ fonts: prepare Fonts.cc
 	$(CC) $(CFLAGS) $(INCLUDES) Fonts.cc -o Build/fonts $(LDFLAGS)
 
 stream: prepare Stream.cc
-	@echo "--- Compiling Stream Sample ---"
-	$(CC) $(CFLAGS) $(INCLUDES) Stream.cc -o Build/stream $(LDFLAGS)
+
+terminal: prepare Terminal.cc
+	@echo "--- Compiling Terminal Sample ---"
+	$(CC) $(CFLAGS) $(INCLUDES) Terminal.cc -o Build/terminal $(LDFLAGS)
 
 clean:
 	@echo "--- Cleaning ---"

@@ -30,9 +30,8 @@ public:
         FS::TextFile vert("Assets/mesh_instanced.vert");
         FS::TextFile frag("Assets/mesh_instanced.frag");
 
-        FS::BinaryFile texture("Assets/mesh_particle.png");
         m_Icon = new Icon();
-        m_Icon->load("particles/1", texture);
+        m_Icon->load("particles/1", FS::BinaryFile("Assets/mesh_particle.png"));
 
         m_Shader = ResourceManager::getInstance().loadShader("mesh_instanced", vert.content(), frag.content());
         m_Shader->dump();
@@ -99,7 +98,9 @@ public:
         
         m_Shader->use();
         m_Shader->uniform("u_Texture").set(m_Icon->getTexture(0));
-        m_Shader->uniform("u_ModelViewProjectionMatrix").set(camera.getViewProjectionMatrix() * transformation.state());
+
+        m_Shader->uniform("u_ModelViewMatrix").set(camera.getViewMatrix() * transformation.state());
+        m_Shader->uniform("u_ProjectionMatrix").set(camera.getProjectionMatrix());
 
         context->geometry().bind(m_VertexBuffer, *m_Shader);        
         context->geometry().bind(m_InstanceBuffer, *m_Shader);
