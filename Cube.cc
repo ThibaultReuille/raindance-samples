@@ -1,38 +1,8 @@
 #include <raindance/Raindance.hh>
 #include <raindance/Core/Camera/Camera.hh>
+#include <raindance/Core/Transformation.hh>
 #include <raindance/Core/Primitives/Cube.hh>
-
-const std::string g_VertexShader =   
-"#version 330                                                           \n"
-"                                                                       \n"
-"layout(location = 0) in vec3 a_Position;                               \n"
-"layout(location = 1) in vec3 a_Normal;                                 \n"
-"                                                                       \n"
-"uniform mat4 u_ModelViewProjectionMatrix;                              \n"
-"                                                                       \n"
-"out vec4 v_Color;                                                      \n"
-"                                                                       \n"
-"void main(void)                                                        \n"
-"{                                                                      \n"
-"    v_Color = 0.5 + 0.5 * vec4(a_Normal, 1.0);                         \n"
-"    gl_Position = u_ModelViewProjectionMatrix * vec4(a_Position, 1.0); \n"
-"}                                                                      \n";
-
-const std::string g_FragmentShader =
-"#version 330                \n"
-"                            \n"
-"#ifdef GL_ES                \n"
-"precision mediump float;    \n"
-"#endif                      \n"
-"                            \n"
-"in vec4 v_Color;            \n"
-"                            \n"
-"out vec4 FragColor;         \n"
-"                            \n"
-"void main(void)             \n"
-"{                           \n"
-"    FragColor = v_Color;    \n"
-"}                           \n";
+#include <raindance/Core/FS.hh>
 
 class DemoWindow : public Window
 {
@@ -41,47 +11,62 @@ public:
     : Window(title, width, height, fullscreen)
     {
         m_Cube = NULL;
-        m_Shader = NULL;
+        m_Shader1 = NULL;
+        m_Shader2 = NULL;
+    }
 
+    virtual ~DemoWindow()
+    {
+        ResourceManager::getInstance().unload(m_Shader1);
+        ResourceManager::getInstance().unload(m_Shader2);
+        delete m_Cube;
+    }
+
+    void initialize(Context* context) override
+    {
         auto viewport = this->getViewport();
         m_Camera.setPerspectiveProjection(60.0f, viewport.getDimension()[0] / viewport.getDimension()[1], 0.1f, 1024.0f);
-        m_Camera.lookAt(glm::vec3(1.5, 2, 2.5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+        m_Camera.lookAt(glm::vec3(1, 2, 3), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 
         m_Cube = new Cube();
+        m_Cube->getLineVertexBuffer().mute("a_Normal", true);
 
-        m_Shader = ResourceManager::getInstance().loadShader("cube", g_VertexShader, g_FragmentShader);
-        m_Shader->dump();
+        {
+            FS::TextFile vert("Assets/cube_solid.vert");
+            FS::TextFile frag("Assets/cube_generic.frag");
+            m_Shader1 = ResourceManager::getInstance().loadShader("Cube/cube_solid", vert.content(), frag.content());
+            m_Shader1->dump();
+        }
+        {
+            FS::TextFile vert("Assets/cube_wireframe.vert");
+            FS::TextFile frag("Assets/cube_generic.frag");
+            m_Shader2 = ResourceManager::getInstance().loadShader("Cube/cube_wireframe", vert.content(), frag.content());
+            m_Shader2->dump();
+
+            m_Shader2->use();
+            m_Shader2->uniform("u_Color").set(glm::vec4(1.0, 1.0, 1.0, 1.0));
+        }
 
         glClearColor(0.2, 0.2, 0.2, 1.0);
         glEnable(GL_DEPTH_TEST);
     }
 
-    virtual ~DemoWindow()
-    {
-        ResourceManager::getInstance().unload(m_Shader);
-        delete m_Cube;
-    }
-
-    virtual void initialize(Context* context)
-    {
-        (void) context;
-    }
-
-    virtual void draw(Context* context)
+    void draw(Context* context) override
     {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+     
+        Transformation transformation;
 
-        m_Shader->use();
-        m_Shader->uniform("u_ModelViewProjectionMatrix").set(m_Camera.getViewProjectionMatrix());
-
-        context->geometry().bind(m_Cube->getVertexBuffer(), *m_Shader);        
-        context->geometry().drawElements(GL_TRIANGLES, m_Cube->getTriangleBuffer().size() / sizeof(unsigned short int), GL_UNSIGNED_SHORT, m_Cube->getTriangleBuffer().ptr());
-        context->geometry().unbind(m_Cube->getVertexBuffer());
+        transformation.translate(glm::vec3(-1, 0, 0));
+        m_Cube->draw(context, m_Camera, transformation, m_Shader1, Cube::TRIANGLES);
         
+        transformation.translate(glm::vec3(+2, 0, 0));
+        m_Cube->draw(context, m_Camera, transformation, m_Shader2, Cube::LINES);
+
         checkGLErrors();
     }
 
-    virtual void idle(Context* context)
+    void idle(Context* context) override
     {
         (void) context;
     }
@@ -89,13 +74,18 @@ public:
 private:
     Camera m_Camera;
     Cube* m_Cube;
-    Shader::Program* m_Shader;
+    Shader::Program* m_Shader1;
+    Shader::Program* m_Shader2;
 };
 
 int main(int argc, char** argv)
 {
     auto demo = new Raindance(argc, argv);
+
     demo->add(new DemoWindow("Cube", 1024, 728));
     demo->run();
+    
     delete demo;
+
+    return 0;
 }

@@ -1,111 +1,19 @@
 #include <raindance/Raindance.hh>
-#include <raindance/Core/OpenCL.hh>
 #include <raindance/Core/Camera/Camera.hh>
 #include <raindance/Core/Camera/Controllers.hh>
-#include <raindance/Core/Primitives/Sphere.hh>
 
-const std::string g_VertexShader =
-    "#version 330                                                                         \n"
-    "layout(location = 0) in vec3 a_Position;                                             \n"
-    "layout(location = 1) in vec3 a_Normal;                                               \n"
-    "layout(location = 2) in vec2 a_Texcoord;                                             \n"
-    "                                                                                     \n"
-    "uniform mat4 u_ModelViewProjectionMatrix;                                            \n"
-    "                                                                                     \n"
-    "out vec4 v_Color;                                                                    \n"
-    "                                                                                     \n"
-    "void main(void)                                                                      \n"
-    "{                                                                                    \n"
-    "    v_Color = 0.5 + 0.25 * vec4(a_Normal, 1.0) + 0.25 * vec4(a_Texcoord, 1.0, 1.0);  \n"
-    "    gl_Position = u_ModelViewProjectionMatrix * vec4(a_Position, 1.0);               \n"
-    "}                                                                                    \n";
+#include <raindance/Core/FS.hh>
 
-const std::string g_FragmentShader =
-    "#version 330                \n"
-    "#ifdef GL_ES                \n"
-    "precision mediump float;    \n"
-    "#endif                      \n"
-    "                            \n"
-    "in vec4 v_Color;            \n"
-    "out vec4 FragColor;         \n"
-    "                            \n"
-    "void main(void)             \n"
-    "{                           \n"
-    "    FragColor = v_Color;    \n"
-    "}                           \n";
-
-const std::string g_ComputeProgram =
-    "__kernel void repulsion(__global float4* inNodes,                                  \n"
-    "                        __global float4* outDirections,                            \n"
-    "                        const unsigned long count,                                 \n"
-    "                        const float k)                                             \n"
-    "{                                                                                  \n"
-    "    unsigned int i = get_global_id(0);                                             \n"
-    "    float4 f = (float4)(0.0);                                                      \n"
-    "    for(unsigned long j = 0; j < count; j++)                                       \n"
-    "    {                                                                              \n"
-    "       if (i != j)                                                                 \n"
-    "       {                                                                           \n"
-    "           float4 direction = inNodes[i] - inNodes[j];                             \n"
-    "           float magnitude = length(direction);                                    \n"
-    "           if (magnitude > 0.0)                                                    \n"
-    "               f += (direction / magnitude) * (k * k / magnitude);                 \n"
-    "       }                                                                           \n"
-    "    }                                                                              \n"
-    "    outDirections[i] = f;                                                          \n"
-    "}                                                                                  \n"
-
-    "__kernel void attraction(__global float4* inNodes,                                 \n"
-    "                         __global ulong2* inEdges,                                 \n"
-    "                         __global float4* outDirections,                           \n"
-    "                         const unsigned long count,                                \n"
-    "                         const float k)                                            \n"
-    "{                                                                                  \n"
-    "    unsigned int i = get_global_id(0);                                             \n"
-    "    unsigned long src = inEdges[i].x;                                              \n"
-    "    unsigned long dst = inEdges[i].y;                                              \n"
-    "    float4 pos1 = inNodes[src];                                                    \n"
-    "    float4 pos2 = inNodes[dst];                                                    \n"
-    "    float4 direction = pos1 - pos2;                                                \n"
-    "    float magnitude = length(direction);                                           \n"
-    "    if (magnitude > 100.0)                                                         \n"
-    "    {                                                                              \n"
-    "        outDirections[src] -= direction * magnitude / k;                           \n"
-    "        outDirections[dst] += direction * magnitude / k;                           \n"
-    "    }                                                                              \n"
-    "}                                                                                  \n"
-
-    "__kernel void movement(__global float4* inNodes,                                   \n"
-    "                       __global float4* inForces,                                  \n"
-    "                       __global float4* outNodes,                                  \n"
-    "                       const float temperature)                                    \n"
-    "{                                                                                  \n"
-    "     unsigned int i = get_global_id(0);                                            \n"
-    "     if (length(inNodes[i]) < 100000)                                              \n"
-    "     {                                                                             \n"
-    "         float magnitude = length(inForces[i]);                                    \n"
-    "         if (magnitude > 0.0)                                                      \n"
-    "           outNodes[i] = inNodes[i] + temperature * inForces[i] / magnitude;       \n"
-    "     }                                                                             \n"
-    "}                                                                                  \n";
+#ifdef PARTICLES_COMMENT
 
 class DemoWindow : public Window
 {
 public:
-    struct Node
-    {
-        glm::vec4 Position;
-    };
 
-    struct Edge
+    struct ParticleInstance
     {
-        unsigned long Node1;
-        unsigned long Node2;
-    };
-
-    struct Force
-    {
-        glm::vec4 Direction;
+        glm::vec3 Position;
+        glm::vec4 Color;
     };
 
     DemoWindow(const char* title, int width, int height, bool fullscreen = false)
@@ -116,7 +24,6 @@ public:
     virtual ~DemoWindow()
     {
         ResourceManager::getInstance().unload(m_Shader);
-        delete m_Sphere;
     }
 
     virtual void initialize(Context* context)
@@ -135,33 +42,34 @@ public:
             m_Camera.setPerspectiveProjection(60.0f, viewport.getDimension()[0] / viewport.getDimension()[1], 0.1f, 1024.0f);
         
             m_SphericalCameraController.bind(context, &m_Camera);
-            m_SphericalCameraController.setRadius(2000);
+            m_SphericalCameraController.setRadius(100);
             m_SphericalCameraController.updateCamera();
 
-            m_Sphere = new SphereMesh(10.0, 4, 4);
-            m_Shader = ResourceManager::getInstance().loadShader("sphere", g_VertexShader, g_FragmentShader);
-            // m_Shader->dump();
+            auto vert = FS::TextFile("./Assets/particles.vert");
+            auto frag = FS::TextFile("./Assets/particles.frag");
+            auto physics = FS::TextFile("./Assets/particles_physics.vert");
+
+            m_Shader = ResourceManager::getInstance().loadShader("particles", vert.content(), frag.content());
+            m_Shader->dump();
 
             // Particle instancing
-            m_Nodes.resize(m_NumParticles);
-            unsigned long count = 0;
-            for (auto& n : m_Nodes)
+            float d = 50;
+            ParticleInstance instance;
+
+            instance.Color = glm::vec4(WHITE, 1.0);
+
+            for (int i = 0; i < m_NumParticles)
             {
-                float x = 1000 * ((float) rand() / RAND_MAX - 0.5f);
-                float y = 1000 * ((float) rand() / RAND_MAX - 0.5f);
-                float z = 1000 * ((float) rand() / RAND_MAX - 0.5f);
-                n.Position = glm::vec4(x, y, z, 0.0);
-                count ++;
+                float x = d * ((float) rand() / RAND_MAX - 0.5f);
+                float y = d * ((float) rand() / RAND_MAX - 0.5f);
+                float z = d * ((float) rand() / RAND_MAX - 0.5f);
+
+                instance.Position = glm::vec4(x, y, z, 0.0);
+                m_ParticleInstanceBuffer.push(&instance, sizeof(ParticleInstance));
             }
 
-            count = 0;
-            m_Edges.resize(m_NumParticles);
-            for (auto& e : m_Edges)
-            {
-                e.Node1 = count;
-                e.Node2 = m_NumParticles % (count + 1);
-                count ++;
-            }
+            m_ParticleInstanceBuffer.describe("a_Position", 3, GL_FLOAT, sizeof(ParticleInstance), 0);
+            m_ParticleInstanceBuffer.describe("a_Color",    4, GL_FLOAT, sizeof(ParticleInstance), 3 * sizeof(GLfloat));
         }
 
         // OpenGL initialization
@@ -170,6 +78,7 @@ public:
             glEnable(GL_DEPTH_TEST);
         }
 
+        /*
         // OpenCL initialization
         {
             m_OpenCL.detect();
@@ -200,8 +109,9 @@ public:
                 throw;
             }
             LOG("LOCAL : %zu\n", local);
-             */
+            *
         }
+        */
     }
 
     virtual void draw(Context* context)
@@ -212,21 +122,19 @@ public:
 
         glm::mat4 model;
 
-        for (auto n : m_Nodes)
-        {
-            model = glm::translate(glm::mat4(), glm::vec3(n.Position));
-            m_Shader->uniform("u_ModelViewProjectionMatrix").set(m_Camera.getViewProjectionMatrix() * model);
+        model = glm::translate(glm::mat4(), glm::vec3(n.Position));
+        m_Shader->uniform("u_ModelViewProjectionMatrix").set(m_Camera.getViewProjectionMatrix() * model);
 
-            context->geometry().bind(m_Sphere->getVertexBuffer(), *m_Shader);
-            context->geometry().drawElements(GL_TRIANGLES, m_Sphere->getIndexBuffer().size() / sizeof(unsigned short int), GL_UNSIGNED_SHORT, m_Sphere->getIndexBuffer().ptr());
-            context->geometry().unbind(m_Sphere->getVertexBuffer());
-        }
+        context->geometry().bind(m_ParticleInstanceBuffer, *m_Shader);
+        context->geometry().drawArrays(GL_POINTS, 0, m_ParticleInstanceBuffer.size() / sizeof(ParticleInstance));
+        context->geometry().unbind(m_ParticleInstanceBuffer);
     }
 
     virtual void idle(Context* context)
     {
         (void) context;
         
+        /*
         if (m_Iterations == 0)
         {
             m_RepulsionK->setArgument(0, *m_InputNodeBuffer);
@@ -257,6 +165,8 @@ public:
 
         clFinish(m_Queue->Object);
         m_OpenCL.enqueueReadBuffer(*m_Queue, *m_OutputNodeBuffer, CL_TRUE, 0, m_Nodes.size() * sizeof(Node), m_Nodes.data(), 0, NULL, NULL);
+
+        */
 
         m_Time = (float)m_Clock.milliseconds() / 1000.0f;
         m_Iterations++;
@@ -290,14 +200,12 @@ public:
 
 private:
     Clock m_Clock;
-    OpenCL m_OpenCL;
     Camera m_Camera;
     SphericalCameraController m_SphericalCameraController;
     SphereMesh* m_Sphere;
     Shader::Program* m_Shader;
 
-    std::vector<Node> m_Nodes;
-    std::vector<Edge> m_Edges;
+    Buffer m_ParticleInstanceBuffer;
 
     unsigned long m_NumParticles;
     unsigned long m_NumForces;
@@ -305,15 +213,6 @@ private:
     float m_Time;
     unsigned int m_Iterations;
     float m_Temperature;
-
-    OpenCL::CommandQueue* m_Queue;
-    OpenCL::Kernel* m_RepulsionK;
-    OpenCL::Kernel* m_AttractionK;
-    OpenCL::Kernel* m_MovementK;
-    OpenCL::Memory* m_InputNodeBuffer;
-    OpenCL::Memory* m_InputEdgeBuffer;
-    OpenCL::Memory* m_OutputNodeBuffer;
-    OpenCL::Memory* m_ForceBuffer;
 };
 
 int main(int argc, char** argv)
@@ -322,4 +221,11 @@ int main(int argc, char** argv)
     demo->add(new DemoWindow("Particles", 1024, 728));
     demo->run();
     delete demo;
+}
+
+#endif
+
+int main(int argc, char** argv)
+{
+    LOG("Disabled for now.\n");
 }

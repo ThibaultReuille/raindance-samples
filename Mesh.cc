@@ -5,13 +5,15 @@
 #include <raindance/Core/FS.hh>
 #include <raindance/Core/Icon.hh>
 
+#include <raindance/Core/OpenCL.hh>
+
 int g_ParticleCount = 0;
 
 class Mesh
 {
 public:
 
-    struct Vertex
+    struct Particle
     {
         glm::vec3 Position;
         glm::vec2 UV;
@@ -42,24 +44,24 @@ public:
             m_VertexBuffer << glm::vec3(-0.5,  0.5, 0.0) << glm::vec2(0, 0);
             m_VertexBuffer << glm::vec3( 0.5,  0.5, 0.0) << glm::vec2(1, 0);
         
-            m_VertexBuffer.describe("a_Position", 3, GL_FLOAT, sizeof(Vertex), 0);
-            m_VertexBuffer.describe("a_UV", 2, GL_FLOAT, sizeof(Vertex), sizeof(glm::vec3));
+            m_VertexBuffer.describe("a_Position", 3, GL_FLOAT, sizeof(Particle), 0);
+            m_VertexBuffer.describe("a_UV", 2, GL_FLOAT, sizeof(Particle), sizeof(glm::vec3));
      
             m_VertexBuffer.generate(Buffer::STATIC);
         }
         {
             for (int n = 0; n < g_ParticleCount; n++)
             {
-                float d = 50;
+                float d = 200;
 
                 Instance i;
 
                 i.Translation = d * glm::vec3(
                     RANDOM_FLOAT(-1.0, 1.0),
                     RANDOM_FLOAT(-1.0, 1.0),
-                    RANDOM_FLOAT(-1.0, 1.0));
+                    0.0);
                 
-                float s = RANDOM_FLOAT(0.5, 2.0);
+                float s = RANDOM_FLOAT(5.0, 10.0);
                 i.Scale = glm::vec3(s, s, 1.0);
                 
                 i.Color = glm::vec4(
@@ -87,7 +89,28 @@ public:
 
     virtual void initialize(Context* context)
     {
-        (void) context;
+        OpenCL m_OpenCL;
+        m_OpenCL.detect();
+        m_OpenCL.dump();
+
+        // NOTE : We are assuming the last device is the best one.
+        auto m_Device = m_OpenCL.devices().back();
+        auto m_Context = m_OpenCL.createContext(*m_Device);
+        auto m_Queue = m_OpenCL.createCommandQueue(*m_Context);
+
+        auto m_Source = FS::TextFile("./Assets/mesh_physics.cl");
+     
+        auto m_Program = m_OpenCL.loadProgram(*m_Context, "physics", m_Source.content());
+        //auto m_RepulsionK = m_OpenCL.createKernel(*m_Program, "repulsion");
+        //auto m_AttractionK = m_OpenCL.createKernel(*m_Program, "attraction");
+        //auto m_MovementK = m_OpenCL.createKernel(*m_Program, "movement");
+
+        auto m_TestK = m_OpenCL.createKernel(*m_Program, "sine_wave");
+
+        // TODO: m_VBO_CL.Object = clCreateFromGLBuffer(m_Context->Object, CL_MEM_WRITE_ONLY, m_InstanceBuffer.vbo(), NULL);
+
+        LOG("VBO CL: %u\n", m_VBO_CL.Object);
+        // exit(0);
     }
 
     virtual void draw(Context* context, Camera& camera, Transformation& transformation)
@@ -111,10 +134,15 @@ public:
         glVertexAttribDivisorARB(m_Shader->attribute("a_Scale").location(), 1);
         glVertexAttribDivisorARB(m_Shader->attribute("a_Color").location(), 1);
 
-        context->geometry().drawArraysInstanced(GL_TRIANGLE_STRIP, 0, m_VertexBuffer.size() / sizeof(Vertex), m_InstanceBuffer.size() / sizeof(Instance));
+        context->geometry().drawArraysInstanced(GL_TRIANGLE_STRIP, 0, m_VertexBuffer.size() / sizeof(Particle), m_InstanceBuffer.size() / sizeof(Instance));
         
         context->geometry().unbind(m_VertexBuffer);
         context->geometry().unbind(m_InstanceBuffer);
+    }
+
+    virtual void idle(Context* context)
+    {
+
     }
 
 private:
@@ -122,6 +150,8 @@ private:
     Icon* m_Icon;
     Buffer m_VertexBuffer;
     Buffer m_InstanceBuffer;
+
+    OpenCL::Memory m_VBO_CL;
 };
 
 class DemoWindow : public Window
@@ -130,9 +160,8 @@ public:
     DemoWindow(const char* title, int width, int height, bool fullscreen = false)
     : Window(title, width, height, fullscreen)
     {
-        auto viewport = this->getViewport();
-        m_Camera.setPerspectiveProjection(60.0f, viewport.getDimension()[0] / viewport.getDimension()[1], 0.1f, 1024.0f);
-        m_Camera.lookAt(glm::vec3(1.5, 2, 2.5), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+        m_Camera.setOrthographicProjection(-width / 2, width / 2, -height / 2, height / 2, -1024.0, 1024.0);
+        m_Camera.lookAt(glm::vec3(0.0, 0.0, -50), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 
         m_Mesh = new Mesh();
 
@@ -143,6 +172,11 @@ public:
     virtual ~DemoWindow()
     {
         delete m_Mesh;
+    }
+
+    virtual void initialize(Context* context)
+    {
+        m_Mesh->initialize(context);
     }
 
     virtual void draw(Context* context)
@@ -157,11 +191,6 @@ public:
     virtual void idle(Context* context)
     {
         float t = context->clock().seconds() / 4;
-        float r = 125 + 25 * cos(t / 3);
-
-        glm::vec3 pos = glm::vec3(r * cos(t), r * cos(t / 2), r * sin(t));
-
-        m_Camera.lookAt(pos, glm::vec3(0.0, 0.0, 0.0), glm::vec3(0.0, 1.0, 0.0));
     }
 
 private:
@@ -187,3 +216,4 @@ int main(int argc, char** argv)
 
     delete demo;
 }
+
