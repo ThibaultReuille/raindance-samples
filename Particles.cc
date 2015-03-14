@@ -1,231 +1,256 @@
 #include <raindance/Raindance.hh>
 #include <raindance/Core/Camera/Camera.hh>
-#include <raindance/Core/Camera/Controllers.hh>
-
+#include <raindance/Core/Primitives/Cube.hh>
+#include <raindance/Core/Transformation.hh>
 #include <raindance/Core/FS.hh>
+#include <raindance/Core/Icon.hh>
 
-#ifdef PARTICLES_COMMENT
+#include <raindance/Core/OpenCL.hh>
+
+int g_ParticleCount = 0;
+
+class Particles
+{
+public:
+
+    struct Particle
+    {
+        glm::vec3 Position;
+        glm::vec2 UV;
+        // glm::vec3 Normal;
+    };
+
+    struct Instance
+    {
+        glm::vec4 Translation;
+        glm::vec4 Scale;
+        glm::vec4 Color;
+    };
+
+    Particles()
+    {
+        FS::TextFile vert("Assets/particles_instanced.vert");
+        FS::TextFile frag("Assets/particles_instanced.frag");
+
+        m_Icon = new Icon();
+        m_Icon->load("Particles/icon", FS::BinaryFile("Assets/particles_icon.png"));
+
+        m_Shader = ResourceManager::getInstance().loadShader("mesh_instanced", vert.content(), frag.content());
+        m_Shader->dump();
+
+        {
+            m_VertexBuffer << glm::vec3(-0.5, -0.5, 0.0) << glm::vec2(0, 1);
+            m_VertexBuffer << glm::vec3( 0.5, -0.5, 0.0) << glm::vec2(1, 1);
+            m_VertexBuffer << glm::vec3(-0.5,  0.5, 0.0) << glm::vec2(0, 0);
+            m_VertexBuffer << glm::vec3( 0.5,  0.5, 0.0) << glm::vec2(1, 0);
+        
+            m_VertexBuffer.describe("a_Position", 3, GL_FLOAT, sizeof(Particle), 0);
+            m_VertexBuffer.describe("a_UV", 2, GL_FLOAT, sizeof(Particle), sizeof(glm::vec3));
+     
+            m_VertexBuffer.generate(Buffer::STATIC);
+        }
+
+        {
+            for (int n = 0; n < g_ParticleCount; n++)
+            {
+                float d = 200;
+
+                Instance i;
+
+                i.Translation = d * glm::vec4(
+                    RANDOM_FLOAT(-1.0, 1.0),
+                    RANDOM_FLOAT(-1.0, 1.0),
+                    0.0,
+                    1.0);
+                
+                float s = RANDOM_FLOAT(0.1, 2.0);
+                i.Scale = glm::vec4(s, s, 1.0, 1.0);
+                
+                i.Color = glm::vec4(
+                    RANDOM_FLOAT(0.0, 1.0),
+                    RANDOM_FLOAT(0.0, 1.0),
+                    RANDOM_FLOAT(0.0, 1.0),
+                    1.0);
+
+                m_InstanceBuffer.push(&i, sizeof(Instance));
+            }
+
+            m_InstanceBuffer.describe("a_Translation", 4, GL_FLOAT, sizeof(Instance), 0);
+            m_InstanceBuffer.describe("a_Scale", 4, GL_FLOAT, sizeof(Instance), 1 * sizeof(glm::vec4));
+            m_InstanceBuffer.describe("a_Color", 4, GL_FLOAT, sizeof(Instance), 2 * sizeof(glm::vec4));
+
+            m_InstanceBuffer.generate(Buffer::STATIC);
+        }
+    }
+
+    virtual ~Particles()
+    {
+        SAFE_DELETE(m_Icon);
+        ResourceManager::getInstance().unload(m_Shader);
+    }
+
+    void initialize(Context* context)
+    {
+        // OpenGL
+        {
+            m_Shader->use();
+            m_Shader->uniform("u_Texture").set(m_Icon->getTexture(0));
+        }
+
+        // OpenCL
+        {
+            m_OpenCL.detect();
+            //m_OpenCL.dump();
+
+            // NOTE : We are assuming the last device is the best one.
+            m_CL.Device = m_OpenCL.devices().back();
+
+            m_OpenCL.dump(*m_CL.Device);
+
+            m_CL.Context = m_OpenCL.createContext(*m_CL.Device);
+            m_CL.Queue = m_OpenCL.createCommandQueue(*m_CL.Context);
+
+            auto source = FS::TextFile("./Assets/particles_physics.cl");
+         
+            m_CL.Program = m_OpenCL.loadProgram(*m_CL.Context, "physics", source.content());
+            m_CL.TestK = m_OpenCL.createKernel(*m_CL.Program, "sine_wave");
+
+            m_CL.InstanceBuffer = m_OpenCL.createFromGLBuffer(*m_CL.Context, CL_MEM_READ_WRITE, m_InstanceBuffer.vbo());
+        
+            clFinish(m_CL.Queue->Object);
+        }
+    }
+
+    void draw(Context* context, Camera& camera, Transformation& transformation)
+    {
+        glDisable(GL_DEPTH_TEST);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_DST_ALPHA);
+        
+        m_Shader->use();
+
+        m_Shader->uniform("u_ModelViewMatrix").set(camera.getViewMatrix() * transformation.state());
+        m_Shader->uniform("u_ProjectionMatrix").set(camera.getProjectionMatrix());
+
+        context->geometry().bind(m_VertexBuffer, *m_Shader);        
+        context->geometry().bind(m_InstanceBuffer, *m_Shader);
+        
+        glVertexAttribDivisorARB(m_Shader->attribute("a_Position").location(), 0); // Same vertices per instance
+
+        glVertexAttribDivisorARB(m_Shader->attribute("a_Translation").location(), 1);
+        glVertexAttribDivisorARB(m_Shader->attribute("a_Scale").location(), 1);
+        glVertexAttribDivisorARB(m_Shader->attribute("a_Color").location(), 1);
+
+        context->geometry().drawArraysInstanced(GL_TRIANGLE_STRIP, 0, m_VertexBuffer.size() / sizeof(Particle), m_InstanceBuffer.size() / sizeof(Instance));
+        
+        context->geometry().unbind(m_VertexBuffer);
+        context->geometry().unbind(m_InstanceBuffer);
+    }
+
+    void idle(Context* context)
+    {
+        size_t num_instances = m_InstanceBuffer.size() / sizeof(Instance);
+
+        m_OpenCL.enqueueAcquireGLObjects(*m_CL.Queue, 1, &m_CL.InstanceBuffer->Object, 0, 0, NULL);
+
+        {
+            m_CL.Time = context->clock().seconds();
+
+            m_CL.TestK->setArgument(0, *m_CL.InstanceBuffer);
+            m_CL.TestK->setArgument(1, &m_CL.Time, sizeof(float));
+
+            m_OpenCL.enqueueNDRangeKernel(*m_CL.Queue, *m_CL.TestK, 1, NULL, &num_instances, NULL, 0, NULL, NULL);
+        }
+
+        m_OpenCL.enqueueReleaseGLObjects(*m_CL.Queue, 1, &m_CL.InstanceBuffer->Object, 0, 0, NULL);
+        clFinish(m_CL.Queue->Object);
+    } 
+
+private:
+    Shader::Program* m_Shader;
+    Icon* m_Icon;
+    Buffer m_VertexBuffer;
+    Buffer m_InstanceBuffer;
+
+    struct OpenCLData
+    {
+        OpenCLData() {}
+
+        OpenCL::Device* Device;
+        OpenCL::Context* Context;
+        OpenCL::CommandQueue* Queue;
+        OpenCL::Program* Program;
+        OpenCL::Kernel* TestK;
+
+        OpenCL::Memory* InstanceBuffer;
+        unsigned int Size;
+        float Time;
+    };
+
+    OpenCL m_OpenCL;
+    OpenCLData m_CL;    
+};
 
 class DemoWindow : public Window
 {
 public:
-
-    struct ParticleInstance
-    {
-        glm::vec3 Position;
-        glm::vec4 Color;
-    };
-
     DemoWindow(const char* title, int width, int height, bool fullscreen = false)
     : Window(title, width, height, fullscreen)
     {
+        m_Camera.setOrthographicProjection(-width / 2, width / 2, -height / 2, height / 2, -1024.0, 1024.0);
+        m_Camera.lookAt(glm::vec3(0.0, 0.0, -50), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
+
+        m_Particles = new Particles();
+
+        glClearColor(0.2, 0.2, 0.2, 1.0);
+        glEnable(GL_DEPTH_TEST);
     }
-    
+
     virtual ~DemoWindow()
     {
-        ResourceManager::getInstance().unload(m_Shader);
+        delete m_Particles;
     }
 
-    virtual void initialize(Context* context)
+    void initialize(Context* context) override
     {
-        m_NumParticles = 4096;
-        m_NumForces = 4096;
-        m_Time = 0.0;
-        float volume = 10 * 10 * 10;
-        m_K = pow(volume / m_NumParticles, 1.0 / 3.0);
-        m_Iterations = 0;
-        m_Temperature = 2.0;
-
-        // Scene initialization
-        {
-            auto viewport = this->getViewport();
-            m_Camera.setPerspectiveProjection(60.0f, viewport.getDimension()[0] / viewport.getDimension()[1], 0.1f, 1024.0f);
-        
-            m_SphericalCameraController.bind(context, &m_Camera);
-            m_SphericalCameraController.setRadius(100);
-            m_SphericalCameraController.updateCamera();
-
-            auto vert = FS::TextFile("./Assets/particles.vert");
-            auto frag = FS::TextFile("./Assets/particles.frag");
-            auto physics = FS::TextFile("./Assets/particles_physics.vert");
-
-            m_Shader = ResourceManager::getInstance().loadShader("particles", vert.content(), frag.content());
-            m_Shader->dump();
-
-            // Particle instancing
-            float d = 50;
-            ParticleInstance instance;
-
-            instance.Color = glm::vec4(WHITE, 1.0);
-
-            for (int i = 0; i < m_NumParticles)
-            {
-                float x = d * ((float) rand() / RAND_MAX - 0.5f);
-                float y = d * ((float) rand() / RAND_MAX - 0.5f);
-                float z = d * ((float) rand() / RAND_MAX - 0.5f);
-
-                instance.Position = glm::vec4(x, y, z, 0.0);
-                m_ParticleInstanceBuffer.push(&instance, sizeof(ParticleInstance));
-            }
-
-            m_ParticleInstanceBuffer.describe("a_Position", 3, GL_FLOAT, sizeof(ParticleInstance), 0);
-            m_ParticleInstanceBuffer.describe("a_Color",    4, GL_FLOAT, sizeof(ParticleInstance), 3 * sizeof(GLfloat));
-        }
-
-        // OpenGL initialization
-        {
-            glClearColor(0.2, 0.2, 0.2, 1.0);
-            glEnable(GL_DEPTH_TEST);
-        }
-
-        /*
-        // OpenCL initialization
-        {
-            m_OpenCL.detect();
-            m_OpenCL.dump();
-            // TODO : Find best OpenCL architecture instead of hardcoded one
-            // OpenCL::Device* device = m_OpenCL.getBestDevice();
-            const OpenCL::Device* device = m_OpenCL.device(1);
-            OpenCL::Context* context = m_OpenCL.createContext(*device);
-            m_Queue = m_OpenCL.createCommandQueue(*context);
-
-            OpenCL::Program* program = m_OpenCL.loadProgram(*context, "particles", g_ComputeProgram);
-            m_RepulsionK = m_OpenCL.createKernel(*program, "repulsion");
-            m_AttractionK = m_OpenCL.createKernel(*program, "attraction");
-            m_MovementK = m_OpenCL.createKernel(*program, "movement");
-
-            m_InputNodeBuffer = m_OpenCL.createBuffer(*context, CL_MEM_READ_ONLY, m_Nodes.size() * sizeof(Node));
-            m_InputEdgeBuffer = m_OpenCL.createBuffer(*context, CL_MEM_READ_ONLY, m_Edges.size() * sizeof(Edge));
-            m_ForceBuffer = m_OpenCL.createBuffer(*context, CL_MEM_READ_WRITE, m_Nodes.size() * sizeof(Node));
-            m_OutputNodeBuffer = m_OpenCL.createBuffer(*context, CL_MEM_WRITE_ONLY, m_Nodes.size() * sizeof(Node));
-
-            // Get the maximum work group size for executing the kernel on the device
-            /*
-            size_t local; // local domain size for our calculation
-            error = clGetKernelWorkGroupInfo(m_OpenCL.kernel(m_KID).Object, m_OpenCL.device(did).ID, CL_KERNEL_WORK_GROUP_SIZE, sizeof(local), &local, NULL);
-            if (error != CL_SUCCESS)
-            {
-                printf("[OpenCL] Error: Failed to retrieve kernel work group info! %d\n", error);
-                throw;
-            }
-            LOG("LOCAL : %zu\n", local);
-            *
-        }
-        */
+        m_Particles->initialize(context);
     }
 
-    virtual void draw(Context* context)
+    void draw(Context* context) override
     {
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        m_Shader->use();
+        Transformation transformation;
 
-        glm::mat4 model;
-
-        model = glm::translate(glm::mat4(), glm::vec3(n.Position));
-        m_Shader->uniform("u_ModelViewProjectionMatrix").set(m_Camera.getViewProjectionMatrix() * model);
-
-        context->geometry().bind(m_ParticleInstanceBuffer, *m_Shader);
-        context->geometry().drawArrays(GL_POINTS, 0, m_ParticleInstanceBuffer.size() / sizeof(ParticleInstance));
-        context->geometry().unbind(m_ParticleInstanceBuffer);
+        m_Particles->draw(context, m_Camera, transformation);
     }
 
-    virtual void idle(Context* context)
+    void idle(Context* context) override
     {
-        (void) context;
-        
-        /*
-        if (m_Iterations == 0)
-        {
-            m_RepulsionK->setArgument(0, *m_InputNodeBuffer);
-            m_RepulsionK->setArgument(1, *m_ForceBuffer);
-            m_RepulsionK->setArgument(2, &m_NumParticles, sizeof(unsigned long));
-            m_RepulsionK->setArgument(3, &m_K, sizeof(float));
-
-            m_AttractionK->setArgument(0, *m_InputNodeBuffer);
-            m_AttractionK->setArgument(1, *m_InputEdgeBuffer);
-            m_AttractionK->setArgument(2, *m_ForceBuffer);
-            m_AttractionK->setArgument(3, &m_NumForces, sizeof(unsigned long));
-            m_AttractionK->setArgument(4, &m_K, sizeof(float));
-
-            m_MovementK->setArgument(0, *m_InputNodeBuffer);
-            m_MovementK->setArgument(1, *m_ForceBuffer);
-            m_MovementK->setArgument(2, *m_OutputNodeBuffer);
-            m_MovementK->setArgument(3, &m_Temperature, sizeof(float));
-
-            m_Clock.reset();
-        }
-
-        m_OpenCL.enqueueWriteBuffer(*m_Queue, *m_InputNodeBuffer, CL_TRUE, 0, m_Nodes.size() * sizeof(Node), m_Nodes.data(), 0, NULL, NULL);
-        m_OpenCL.enqueueWriteBuffer(*m_Queue, *m_InputEdgeBuffer, CL_TRUE, 0, m_Edges.size() * sizeof(Edge), m_Edges.data(), 0, NULL, NULL);
-
-        m_OpenCL.enqueueNDRangeKernel(*m_Queue, *m_RepulsionK, 1, NULL, &m_NumParticles, NULL, 0, NULL, NULL);
-        m_OpenCL.enqueueNDRangeKernel(*m_Queue, *m_AttractionK, 1, NULL, &m_NumForces, NULL, 0, NULL, NULL);
-        m_OpenCL.enqueueNDRangeKernel(*m_Queue, *m_MovementK, 1, NULL, &m_NumParticles, NULL, 0, NULL, NULL);
-
-        clFinish(m_Queue->Object);
-        m_OpenCL.enqueueReadBuffer(*m_Queue, *m_OutputNodeBuffer, CL_TRUE, 0, m_Nodes.size() * sizeof(Node), m_Nodes.data(), 0, NULL, NULL);
-
-        */
-
-        m_Time = (float)m_Clock.milliseconds() / 1000.0f;
-        m_Iterations++;
-        if (m_Time > 0.0)
-        {
-            LOG("Iteration : %u, Time : %f, Iteration/sec : %f\n", m_Iterations, m_Time, m_Iterations / m_Time);
-        }
-
-        m_SphericalCameraController.updateCamera();
-    }
-
-    void onKey(int key, int scancode, int action, int mods) override
-    {
-        m_SphericalCameraController.onKey(key, scancode, action, mods);
-    }
-
-    void onScroll(double xoffset, double yoffset) override
-    {
-        m_SphericalCameraController.onScroll(xoffset, yoffset);
-    }
-
-    void onCursorPos(double xpos, double ypos) override
-    {
-        m_SphericalCameraController.onCursorPos(xpos, ypos);
-    }
-
-    void onMouseButton(int button, int action, int mods) override
-    {
-        m_SphericalCameraController.onMouseButton(button, action, mods);
+        m_Particles->idle(context);
     }
 
 private:
-    Clock m_Clock;
     Camera m_Camera;
-    SphericalCameraController m_SphericalCameraController;
-    SphereMesh* m_Sphere;
-    Shader::Program* m_Shader;
-
-    Buffer m_ParticleInstanceBuffer;
-
-    unsigned long m_NumParticles;
-    unsigned long m_NumForces;
-    float m_K;
-    float m_Time;
-    unsigned int m_Iterations;
-    float m_Temperature;
+    Particles* m_Particles;
 };
 
 int main(int argc, char** argv)
 {
+    if (argc != 2)
+    {
+        LOG("Usage: %s <number of particles>\n", argv[0]);
+        return 0;
+    }
+
+    g_ParticleCount = std::stoi(std::string(argv[1]));
+
     auto demo = new Raindance(argc, argv);
-    demo->add(new DemoWindow("Particles", 1024, 728));
+
+    demo->add(new DemoWindow("Mesh", 800, 600));
+
     demo->run();
+
     delete demo;
 }
 
-#endif
-
-int main(int argc, char** argv)
-{
-    LOG("Disabled for now.\n");
-}

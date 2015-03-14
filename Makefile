@@ -28,10 +28,6 @@ cube: prepare Cube.cc
 	@echo "--- Compiling Cube Sample ---"
 	$(CC) $(CFLAGS) $(INCLUDES) Cube.cc -o Build/cube $(LDFLAGS)
 
-mesh: prepare Mesh.cc
-	@echo "--- Compiling Mesh Sample ---"
-	$(CC) $(CFLAGS) $(INCLUDES) Mesh.cc -o Build/mesh $(LDFLAGS)
-
 particles: prepare Particles.cc
 	@echo "--- Compiling Particles Sample ---"
 	$(CC) $(CFLAGS) $(INCLUDES) Particles.cc -o Build/particles $(LDFLAGS)
