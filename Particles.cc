@@ -35,7 +35,7 @@ public:
         m_Icon = new Icon();
         m_Icon->load("Particles/icon", FS::BinaryFile("Assets/particles_icon.png"));
 
-        m_Shader = ResourceManager::getInstance().loadShader("mesh_instanced", vert.content(), frag.content());
+        m_Shader = ResourceManager::getInstance().loadShader("Particles/particles", vert.content(), frag.content());
         m_Shader->dump();
 
         {

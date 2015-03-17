@@ -67,7 +67,7 @@ __kernel void sine_wave(__global Instance* instances, float time)
 
     instances[id].Translation.xyz = (float3)
     (
-        200 * cos(cos(float(id)) * time / 5 + id),
+        200 * cos(cos(float(id)) * time / 2 + id),
         pos.y,
         pos.z
     );

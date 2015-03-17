@@ -55,6 +55,7 @@ terminal: prepare Terminal.cc
 stereo: prepare Stereo.cc
 	@echo "--- Compiling Stereo Sample ---"
 	$(CC) $(CFLAGS) $(INCLUDES) Stereo.cc -o Build/stereo $(LDFLAGS)
+
 clean:
 	@echo "--- Cleaning ---"
 	rm -rf Build
