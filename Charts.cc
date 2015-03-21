@@ -5,7 +5,7 @@
 #include <raindance/Core/Charts/HeightMap.hh>
 #include <raindance/Core/Charts/IconMap.hh>
 
-class DemoWindow : public Window
+class DemoWindow : public rd::Window
 {
 public:
     

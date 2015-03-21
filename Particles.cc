@@ -191,7 +191,7 @@ private:
     OpenCLData m_CL;    
 };
 
-class DemoWindow : public Window
+class DemoWindow : public rd::Window
 {
 public:
     DemoWindow(const char* title, int width, int height, bool fullscreen = false)

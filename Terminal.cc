@@ -5,7 +5,7 @@
 #include <raindance/Core/Font.hh>
 #include <raindance/Core/Console/Shell.hh>
 
-class DemoWindow : public Window
+class DemoWindow : public rd::Window
 {
 public:
     DemoWindow(const char* title, int width, int height, bool fullscreen = false)

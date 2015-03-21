@@ -85,7 +85,7 @@ const std::string g_FragmentShader = "  \n\
     }                                   \n\
 ";
 
-class DemoWindow : public Window
+class DemoWindow : public rd::Window
 {
 public:
     struct Agent

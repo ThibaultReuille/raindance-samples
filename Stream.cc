@@ -98,7 +98,7 @@ protected:
     Polyline* m_Polyline;
 };
 
-class DemoWindow : public Window
+class DemoWindow : public rd::Window
 {
 public:
     DemoWindow(const char* title, int w, int h, bool fullscreen = false)

@@ -13,7 +13,7 @@ INCLUDES=-I../ -I../raindance -I./raindance/Lib/ -I../raindance/Lib/glm-0.9.5.4
 
 .PHONY: all prepare
 
-all: prepare window cube particles charts agents fonts stream terminal stereo
+all: prepare window cube particles charts agents fonts stream terminal stereo interface
 
 prepare:
 	( cd ../raindance && make )
@@ -23,6 +23,10 @@ prepare:
 window: prepare Window.cc
 	@echo "--- Compiling Window Sample ---"
 	$(CC) $(CFLAGS) $(INCLUDES) Window.cc -o Build/window $(LDFLAGS)
+
+interface: prepare Interface.cc
+	@echo "--- Compiling Interface Sample ---"
+	$(CC) $(CFLAGS) $(INCLUDES) Interface.cc -o Build/interface $(LDFLAGS)
 
 cube: prepare Cube.cc
 	@echo "--- Compiling Cube Sample ---"
