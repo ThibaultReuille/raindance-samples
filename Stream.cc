@@ -122,7 +122,7 @@ public:
             Grid::Parameters params = {};
 
             params.Dimension = glm::vec2(600, 200);
-            params.Origin = glm::vec2(0, -100);
+            //params.Origin = glm::vec2(0, -100);
             params.Step = glm::vec2(100.0, 100.0);
             params.Division = glm::vec2(10.0, 10.0);
 
@@ -158,7 +158,10 @@ public:
 
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        m_Grid->draw(*context, transformation, m_Camera);
+        transformation.push();
+        transformation.translate(glm::vec3(0, -100, 0));
+        m_Grid->draw(context, m_Camera, transformation);
+        transformation.pop();
 
         m_TimeSerie->draw(context, m_Camera);
         m_TimeSerieAvg1->draw(context, m_Camera);

@@ -137,7 +137,6 @@ public:
 
         Grid::Parameters params = {};
         params.Dimension = glm::vec2(70, 70);
-        params.Origin = glm::vec2(0, 0);
         params.Step = glm::vec2(5.0, 5.0);
         params.Division = glm::vec2(10.0, 10.0);
         params.Color = glm::vec4(0.5, 0.5, 0.5, 1.0);
@@ -193,7 +192,7 @@ public:
         transformation.push();
         transformation.rotate(90, glm::vec3(1.0, 0, 0));
         transformation.translate(glm::vec3(-m_Grid->parameters().Dimension.x / 2, -m_Grid->parameters().Dimension.y / 2, 0));
-        m_Grid->draw(*context, transformation, m_Camera3D);
+        m_Grid->draw(context, m_Camera3D, transformation);
         transformation.pop();
 
         m_AgentShader->use();
