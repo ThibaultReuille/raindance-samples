@@ -24,6 +24,8 @@ public:
 
     void initialize(Context* context) override
     {
+        (void) context;
+        
         auto viewport = this->getViewport();
         m_Camera.setPerspectiveProjection(60.0f, viewport.getDimension()[0] / viewport.getDimension()[1], 0.1f, 1024.0f);
         m_Camera.lookAt(glm::vec3(1, 2, 3), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));

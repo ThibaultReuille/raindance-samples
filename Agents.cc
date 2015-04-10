@@ -181,7 +181,7 @@ public:
 
     virtual void reshape(int width, int height)
     {
-        m_Camera3D.reshape(width, height);
+        m_Camera3D.resize(width, height);
     }
 
     virtual void draw(Context* context)

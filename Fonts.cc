@@ -16,7 +16,7 @@ public:
         glClearColor(0.2, 0.2, 0.2, 1.0);
         glEnable(GL_DEPTH_TEST);
 
-        m_Font = new Font();
+        m_Font = new rd::Font();
         m_Text.set("Data is Beautiful.", m_Font);
     }
 
@@ -66,7 +66,7 @@ private:
     Camera m_Camera;
 
     Text m_Text;
-    Font* m_Font;
+    rd::Font* m_Font;
 };
 
 int main(int argc, char** argv)

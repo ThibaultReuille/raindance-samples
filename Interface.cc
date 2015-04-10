@@ -1,7 +1,54 @@
 #include <raindance/Raindance.hh>
 #include <raindance/Core/Transformation.hh>
-#include <raindance/Core/Interface/Box.hh>
+#include <raindance/Core/Interface/Document.hh>
 #include <raindance/Core/FS.hh>
+
+class TestDocument : public Document
+{
+public:
+    TestDocument(const glm::vec3& dimension)
+    : Document(dimension)
+    {
+        this->margin().top(5);
+        this->margin().left(5);
+        this->margin().right(5);
+        this->margin().bottom(0);
+
+        this->border().top(5);
+        this->border().bottom(1);
+        this->border().left(1);
+        this->border().right(1);
+
+        this->padding().top(0);
+        this->padding().bottom(0);
+        this->padding().left(0);
+        this->padding().right(0);
+
+        this->border().color(glm::vec4(WHITE, 1.0));
+
+        this->content().color(glm::vec4(0.3, 0.3, 0.3, 1.0));
+    }
+
+    virtual ~TestDocument()
+    {
+    }
+
+    void draw() override
+    {
+        auto position = this->position() + glm::vec3(this->margin().left() + this->border().left() + this->padding().left(),
+                                                     this->margin().bottom() + this->border().bottom() + this->padding().bottom(),
+                                                     0);
+        glEnable(GL_SCISSOR_TEST);
+        glViewport(position.x, position.y, this->content().getWidth(), this->content().getHeight());
+        glScissor(position.x, position.y, this->content().getWidth(), this->content().getHeight());
+
+        glClearColor(1.0, 0, 0, 1);
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        glDisable(GL_SCISSOR_TEST);
+    }
+
+private:
+};
 
 class DemoWindow : public rd::Window
 {
@@ -30,8 +77,7 @@ public:
         auto width = this->getViewport().getDimension()[0];
         auto height = this->getViewport().getDimension()[1];
 
-
-        m_Camera.setOrthographicProjection(0, width, height, 0, -100, 100);
+        m_Camera.setOrthographicProjection(0, width, 0, height, -100, 100);
         m_Camera.lookAt(glm::vec3(0.0, 0.0, 100.0), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
 
         FS::TextFile vert("Assets/interface_document.vert");
@@ -42,30 +88,15 @@ public:
 
         for (int i = 0; i < 80; i++)
         {
-            auto width = RANDOM_INT(50, 100);
-            auto height = RANDOM_INT(50, 100);
+            auto width = RANDOM_FLOAT(50, 100);
+            auto height = RANDOM_FLOAT(50, 100);
 
-            auto doc = new rd::Document(glm::vec3(width, height, 0));
-            {
-                doc->margin().top(5);
-                doc->margin().left(5);
-                doc->margin().right(5);
-                doc->margin().bottom(0);
+            auto doc = new TestDocument(glm::vec3(width, height, 0));
 
-                doc->border().top(1);
-                doc->border().bottom(1);
-                doc->border().left(1);
-                doc->border().right(1);
-
-                doc->padding().top(0);
-                doc->padding().bottom(0);
-                doc->padding().left(0);
-                doc->padding().right(0);
-
-                doc->content().color(glm::vec4(PINK, 1.0));
-            }
-            m_Documents.push_back(doc);
+            body().elements().push_back(doc);
         }
+
+        body().arrange(glm::vec3(0.0, 0.0, 0.0), glm::vec3(width, height, 0.0));
 
         update();
     }
@@ -74,56 +105,38 @@ public:
     {
         // --- Document Tree Visitor ---
         
+        if (!body().refresh())
+            return;
+
         m_DocumentBuffer.clear();
 
-        auto cursor = glm::vec3(0, 0, 0);
-        auto max_width = 0;
-
-        for (auto doc : m_Documents)
+        for (auto doc : body().elements())
         {
-            auto dimension = doc->getDimension();
-
-            if (dimension.x > max_width)
-                max_width = dimension.x;
-
-            if (cursor.y + dimension.y > this->getViewport().getDimension()[1])
-            {
-                cursor.x += max_width;
-                cursor.y = 0;
-                max_width = 0;
-            }
-
-            doc->position(cursor);
-
             GPUDocument data;
 
             // Content + Padding + Border + Margin (Full)
-            data.Position = cursor;
-            data.Dimension = dimension;
+            data.Position = doc->position();
+            data.Dimension = doc->getDimension();
             data.Color = doc->margin().Color;
             // NOTE : We don't draw full document
 
             // Content + Padding + Border
-            data.Position += glm::vec3(doc->margin().X[0], doc->margin().Y[0], doc->margin().Z[0]);
+            data.Position += glm::vec3(doc->margin().left(), doc->margin().bottom(), doc->margin().near());
             data.Dimension -= glm::vec3(doc->margin().getWidth(), doc->margin().getHeight(), doc->margin().getDepth());
             data.Color = doc->border().Color;
-            // m_DocumentBuffer.push(&data, sizeof(GPUDocument)); // TODO: Draw border
+            // m_DocumentBuffer.push(&data, sizeof(GPUDocument)); // TODO: Draw Border
             
             // Content + Padding
-            data.Position += glm::vec3(doc->border().X[0], doc->border().Y[0], doc->border().Z[0]);
+            data.Position += glm::vec3(doc->border().left(), doc->border().bottom(), doc->border().near());
             data.Dimension -= glm::vec3(doc->border().getWidth(), doc->border().getHeight(), doc->border().getDepth());
             data.Color = doc->padding().Color;
             // NOTE: We don't draw padding
 
             // Content
-            data.Position += glm::vec3(doc->padding().X[0], doc->padding().Y[0], doc->padding().Z[0]);
+            data.Position += glm::vec3(doc->padding().left(), doc->padding().bottom(), doc->padding().near());
             data.Dimension -= glm::vec3(doc->padding().getWidth(), doc->padding().getHeight(), doc->padding().getDepth());
             data.Color = doc->content().Color;
             m_DocumentBuffer.push(&data, sizeof(GPUDocument));
-
-            // ---
-
-            cursor.y += dimension.y;
         }
 
         // --- Document Buffer Update ---
@@ -147,7 +160,8 @@ public:
     {
         Transformation transformation;
 
-        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        clear();
+
         glDisable(GL_DEPTH_TEST);
         glEnable (GL_BLEND);
         glBlendFunc (GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
@@ -160,40 +174,13 @@ public:
         context->geometry().bind(m_DocumentBuffer, *m_DocumentShader);
         context->geometry().drawArrays(GL_POINTS, 0, m_DocumentBuffer.size() / sizeof(GPUDocument));        
         context->geometry().unbind(m_DocumentBuffer);
+
+        body().draw();
     }
 
     virtual void idle(Context* context)
     {
-        if (m_NeedsUpdate)
-        {
-            update();
-            m_NeedsUpdate = false;
-        }
-    }
-
-    virtual void onCursorPos(double xpos, double ypos)
-    { 
-        auto width = this->getViewport().getDimension()[0];
-        auto height = this->getViewport().getDimension()[1];
-
-        m_NeedsUpdate = false;
-
-        for (auto doc : m_Documents)
-        {
-            glm::vec2 pos = glm::vec2((float)xpos, (float)ypos) - doc->position().xy();
-
-            switch(doc->pick(pos))
-            {
-            case rd::Document::OUTSIDE:
-                doc->content().Color = glm::vec4(PINK, 1.0);
-                break;
-            default:
-                doc->content().Color = glm::vec4(WHITE, 1.0);
-                break;
-            }
-        }
-
-        m_NeedsUpdate = true;
+        update();
     }
 
 private:
@@ -201,9 +188,6 @@ private:
 
     Buffer m_DocumentBuffer;
     Shader::Program* m_DocumentShader;
-    std::vector<rd::Document*> m_Documents;
-
-    bool m_NeedsUpdate;
 };
 
 int main(int argc, char** argv)
