@@ -30,6 +30,8 @@ public:
 
     void initialize(Context* context) override
     {
+        (void) context;
+
         auto viewport = this->getViewport();
         m_Camera.setPerspectiveProjection(60.0f, (0.5f * viewport.getDimension()[0]) / viewport.getDimension()[1], 0.1f, 1024.0f);
         m_Camera.lookAt(glm::vec3(2, 2, 3), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
@@ -43,7 +45,7 @@ public:
         parameters.Division = glm::vec2(2, 2);
         parameters.Shift = glm::vec2(0, 0);
         parameters.Color = glm::vec4(BLACK, 1.0);
-        parameters.BackgroundColor = glm::vec4(0.1, 0.1, 0.1, 0.5);
+        //parameters.BackgroundColor = glm::vec4(0.1, 0.1, 0.1, 0.5);
         m_Grid = new Grid(parameters);
 
         m_Cube = new Cube();
@@ -99,8 +101,6 @@ public:
      
         Transformation transformation;
 
-        float t = m_Clock.seconds();
-
         auto framebuffer = this->getViewport().getFramebuffer();
 
         glViewport(0, 0, framebuffer.Width / 2, framebuffer.Height);
@@ -120,11 +120,16 @@ public:
 
     void idle(Context* context) override
     {
+        (void) context;
+
         m_Rift->idle();
     }
 
     void onKey(int key, int scancode, int action, int mods) override
     {
+        (void) scancode;
+        (void) mods;
+
         bool isPressOrRepeat = action == GLFW_PRESS || action == GLFW_REPEAT;
 
         if (isPressOrRepeat && key == GLFW_KEY_UP)
