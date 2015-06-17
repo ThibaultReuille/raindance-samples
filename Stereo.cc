@@ -11,8 +11,8 @@
 class DemoWindow : public rd::Window
 {
 public:
-    DemoWindow(const char* title, int width, int height, bool fullscreen = false, GLFWmonitor* monitor = NULL)
-    : rd::Window(title, width, height, fullscreen, monitor)
+    DemoWindow(rd::Window::Settings* settings)
+    : Window(settings)
     {
         m_Axis = NULL;
         m_Grid = NULL;
@@ -172,7 +172,14 @@ int main(int argc, char** argv)
 
     auto demo = new Raindance(argc, argv);
 
-    auto window = new DemoWindow("Stereo", 0, 0, true, rift.findMonitor());
+    rd::Window::Settings settings;
+    settings.Title = std::string("Stereo");
+    settings.Width = 0;
+    settings.Height = 0;
+    settings.Fullscreen = true;
+    settings.Monitor = rift.findMonitor();
+
+    auto window = new DemoWindow(&settings);
 
     window->setOculusRift(&rift);
 

@@ -113,8 +113,8 @@ public:
 		}
     };
 
-    DemoWindow(const char* title, int width, int height, bool fullscreen = false)
-    : Window(title, width, height, fullscreen)
+    DemoWindow(rd::Window::Settings* settings)
+    : Window(settings)
     {
         m_Grid = NULL;
         m_Agent = NULL;
@@ -140,7 +140,7 @@ public:
         params.Step = glm::vec2(5.0, 5.0);
         params.Division = glm::vec2(10.0, 10.0);
         params.Color = glm::vec4(0.5, 0.5, 0.5, 1.0);
-        params.BackgroundColor = 0.5f * params.Color;
+        //params.BackgroundColor = 0.5f * params.Color;
 
         m_Grid = new Grid(params);
 
@@ -274,7 +274,13 @@ private:
 int main(int argc, char** argv)
 {
     auto demo = new Raindance(argc, argv);
-    demo->add(new DemoWindow("Agents", 1024, 728));
+
+    rd::Window::Settings settings;
+    settings.Title = std::string("Agents");
+    settings.Width = 1024;
+    settings.Height = 728;
+    
+    demo->add(new DemoWindow(&settings));
     demo->run();
     delete demo;
 }

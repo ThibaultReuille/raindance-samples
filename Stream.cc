@@ -101,11 +101,11 @@ protected:
 class DemoWindow : public rd::Window
 {
 public:
-    DemoWindow(const char* title, int w, int h, bool fullscreen = false)
-    : Window(title, w, h, fullscreen)
+    DemoWindow(rd::Window::Settings* settings)
+    : Window(settings)
     {
-        float width = static_cast<float>(w);
-        float height = static_cast<float>(h);
+        float width = static_cast<float>(settings->Width);
+        float height = static_cast<float>(settings->Height);
 
         m_Camera.setOrthographicProjection(0, width, - height / 2, height / 2, - 10.0, 10.0);
         m_Camera.lookAt(glm::vec3(0, 0, 1.0), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
@@ -127,7 +127,7 @@ public:
             params.Division = glm::vec2(10.0, 10.0);
 
             params.Color = glm::vec4(0.02, 0.15, 0.4, 1.0);
-            params.BackgroundColor = 0.5f * params.Color;
+            //params.BackgroundColor = 0.5f * params.Color;
             
             m_Grid = new Grid(params);
         }
@@ -236,8 +236,12 @@ int main(int argc, char** argv)
 {
     auto demo = new Raindance(argc, argv);
 
-    demo->add(new DemoWindow("Stream", 600, 300));
+    rd::Window::Settings settings;
+    settings.Title = std::string("Stream");
+    settings.Width = 600;
+    settings.Height = 200;
 
+    demo->add(new DemoWindow(&settings));
     demo->run();
 
     delete demo;

@@ -8,9 +8,7 @@ add_executable(agents Agents.cc)
 add_executable(charts Charts.cc)
 add_executable(cube Cube.cc)
 add_executable(fonts Fonts.cc)
-add_executable(interface Interface.cc)
 add_executable(stream Stream.cc)
-add_executable(terminal Terminal.cc)
 add_executable(window Window.cc)
 add_executable(stereo Stereo.cc)
 
@@ -57,13 +55,9 @@ set_target_properties(libovr PROPERTIES IMPORTED_LOCATION ${PROJECT_SOURCE_DIR}/
  
 ### ----- Linking -----
 
-target_link_libraries(agents ${OPENGL_LIBRARIES})
-target_link_libraries(agents ${GLFW_STATIC_LIBRARIES})
-target_link_libraries(agents ${GLEW_LIBRARIES})
-
-target_link_libraries(charts ${OPENGL_LIBRARIES})
-target_link_libraries(charts ${GLFW_STATIC_LIBRARIES})
-target_link_libraries(charts ${GLEW_LIBRARIES})
+target_link_libraries(window ${OPENGL_LIBRARIES})
+target_link_libraries(window ${GLFW_STATIC_LIBRARIES})
+target_link_libraries(window ${GLEW_LIBRARIES})
 
 target_link_libraries(cube ${OPENGL_LIBRARIES})
 target_link_libraries(cube ${GLFW_STATIC_LIBRARIES})
@@ -73,23 +67,19 @@ target_link_libraries(fonts ${OPENGL_LIBRARIES})
 target_link_libraries(fonts ${GLFW_STATIC_LIBRARIES})
 target_link_libraries(fonts ${GLEW_LIBRARIES})
 
-target_link_libraries(interface ${OPENGL_LIBRARIES})
-target_link_libraries(interface ${GLFW_STATIC_LIBRARIES})
-target_link_libraries(interface ${GLEW_LIBRARIES})
+target_link_libraries(agents ${OPENGL_LIBRARIES})
+target_link_libraries(agents ${GLFW_STATIC_LIBRARIES})
+target_link_libraries(agents ${GLEW_LIBRARIES})
 
-target_link_libraries(stereo ${OPENGL_LIBRARIES})
-target_link_libraries(stereo ${GLFW_STATIC_LIBRARIES})
-target_link_libraries(stereo ${GLEW_LIBRARIES})
-target_link_libraries(stereo libovr)
+target_link_libraries(charts ${OPENGL_LIBRARIES})
+target_link_libraries(charts ${GLFW_STATIC_LIBRARIES})
+target_link_libraries(charts ${GLEW_LIBRARIES})
 
 target_link_libraries(stream ${OPENGL_LIBRARIES})
 target_link_libraries(stream ${GLFW_STATIC_LIBRARIES})
 target_link_libraries(stream ${GLEW_LIBRARIES})
 
-target_link_libraries(terminal ${OPENGL_LIBRARIES})
-target_link_libraries(terminal ${GLFW_STATIC_LIBRARIES})
-target_link_libraries(terminal ${GLEW_LIBRARIES})
-
-target_link_libraries(window ${OPENGL_LIBRARIES})
-target_link_libraries(window ${GLFW_STATIC_LIBRARIES})
-target_link_libraries(window ${GLEW_LIBRARIES})
+target_link_libraries(stereo ${OPENGL_LIBRARIES})
+target_link_libraries(stereo ${GLFW_STATIC_LIBRARIES})
+target_link_libraries(stereo ${GLEW_LIBRARIES})
+target_link_libraries(stereo libovr)

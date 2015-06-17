@@ -7,8 +7,8 @@
 class DemoWindow : public rd::Window
 {
 public:
-    DemoWindow(const char* title, int width, int height, bool fullscreen = false)
-    : Window(title, width, height, fullscreen), m_Font(NULL)
+    DemoWindow(rd::Window::Settings* settings)
+    : Window(settings)
     {
         m_Camera.setOrthographicProjection(0, 1000, 0, 1000, -100, 600);
         m_Camera.lookAt(glm::vec3(0.0, 0.0, 200.0), glm::vec3(0, 0, 0), glm::vec3(0, 1, 0));
@@ -72,7 +72,14 @@ private:
 int main(int argc, char** argv)
 {
     auto demo = new Raindance(argc, argv);
-    demo->add(new DemoWindow("Fonts", 1024, 728));
+
+    rd::Window::Settings settings;
+    settings.Title = std::string("Fonts");
+    settings.Width = 1024;
+    settings.Height = 728;
+
+    demo->add(new DemoWindow(&settings));
     demo->run();
+
     delete demo;
 }

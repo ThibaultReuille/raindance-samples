@@ -8,9 +8,8 @@
 class DemoWindow : public rd::Window
 {
 public:
-    
-    DemoWindow(const char* title, int width, int height, bool fullscreen = false)
-    : Window(title, width, height, fullscreen)
+    DemoWindow(rd::Window::Settings* settings)
+    : Window(settings)
     {
         m_IconMap = NULL;
         m_LineChart1 = NULL;
@@ -168,7 +167,14 @@ private:
 int main(int argc, char** argv)
 {
     auto demo = new Raindance(argc, argv);
-    demo->add(new DemoWindow("Charts", 1024, 728));
+
+    rd::Window::Settings settings;
+    settings.Title = std::string("Charts");
+    settings.Width = 1024;
+    settings.Height = 728;
+
+    demo->add(new DemoWindow(&settings));
     demo->run();
+
     delete demo;
 }

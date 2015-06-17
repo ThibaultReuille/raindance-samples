@@ -3,8 +3,8 @@
 class DemoWindow : public rd::Window
 {
 public:
-    DemoWindow(const char* title, int width, int height, bool fullscreen = false)
-    : Window(title, width, height, fullscreen)
+    DemoWindow(rd::Window::Settings* settings)
+    : Window(settings)
     {
         glClearColor(0.2, 0.2, 0.2, 1.0);
     }
@@ -37,7 +37,12 @@ int main(int argc, char** argv)
 {
     auto demo = new Raindance(argc, argv);
 
-    demo->add(new DemoWindow("Window", 1024, 728));
+    rd::Window::Settings settings;
+    settings.Title = std::string("Window");
+    settings.Width = 1024;
+    settings.Height = 728;
+
+    demo->add(new DemoWindow(&settings));
 
     // TODO : demo->add(new DemoWindow("Window 2", 800, 600));
 
